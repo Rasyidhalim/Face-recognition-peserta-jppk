@@ -17,41 +17,46 @@
 
       <main class="flex-1 overflow-x-hidden overflow-y-auto p-6">
         
-        <template v-if="userRole === 'loket'">
-          <Main v-if="activeTab === 'verifikasi'" />
-          <RiwayatPendaftaran v-else-if="activeTab === 'riwayat'" />
-          </template>
+    <template v-if="userRole === 'loket' || userRole === 'superadmin'">
+        <Main v-if="activeTab === 'verifikasi'" />
+        <RiwayatPendaftaran v-else-if="activeTab === 'riwayat'" />
+    </template>
 
-        <template v-else-if="userRole === 'poli'">
-          <AntrianPoli v-if="activeTab === 'antrian_poli'" />
-          <RiwayatPendaftaran v-else-if="activeTab === 'data_peserta'" />
+    <template v-if="userRole === 'poli' || userRole === 'superadmin'">
+        <AntrianPoli v-if="activeTab === 'antrian_poli'" />
+        <RiwayatPendaftaran v-else-if="activeTab === 'data_peserta'" />
+    </template>
+
+    <template v-if="userRole === 'farmasi' || userRole === 'superadmin'">
         </template>
 
-        <template v-else-if="userRole === 'farmasi'">
-          <AntrianFarmasi v-if="activeTab === 'antrian_obat'" />
-          <RiwayatFarmasi v-else-if="activeTab === 'riwayat_obat'" />
-        </template>
+    <template v-if="userRole === 'dokter' || userRole === 'superadmin'">
+        <DokterDashboard v-if="activeTab === 'pemeriksaan_dokter'" />
+    </template>
 
-      </main>
+    <template v-if="userRole === 'admin' || userRole === 'superadmin'">
+        <AdminDashboard v-if="activeTab === 'kelola_peserta'" />
+        <AdminLaporan v-if="activeTab === 'laporan_pendaftaran'" />
+    </template>
+
+</main>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-
-// --- PENTING: Sesuaikan import agar tidak error ---
-// Jika Mang tidak pakai Inertia, pastikan library usePage/router dihapus. 
-// Tapi kalau pakai Inertia, pastikan sudah jalankan: npm install @inertiajs/vue3
+import { ref, computed, watchEffect } from 'vue'
 
 import Sidebar from '../Components/Sidebar.vue'
 import Header from '../Components/Header.vue'
 import Main from '../Components/Main.vue'
 import RiwayatPendaftaran from '../Layouts/RiwayatPendaftaran.vue'
 import DataPeserta from '../Layouts/DataPeserta.vue'
-import AntrianFarmasi from '../Components/AntrianFarmasi.vue'
-import RiwayatFarmasi from '../Layouts/RiwayatFarmasi.vue'
-import AntrianPoli from '../Layouts/AntrianPoli.vue' // Komponen Baru Mang
+import AntrianPoli from '../Layouts/AntrianPoli.vue'
+import DokterDashboard from '../Layouts/DashboardDokter.vue' 
+
+import AdminDashboard from '../Layouts/AdminDashboard.vue'
+import AdminLaporan from '../Layouts/AdminLaporan.vue'
 
 const props = defineProps({
   userRole: {
@@ -64,14 +69,20 @@ const emit = defineEmits(['do-logout']);
 
 const isSidebarOpen = ref(true)
 
-// LOGIKA DEFAULT TAB: Biar pas login Poli langsung buka Antrian
 const getDefaultTab = () => {
+    if (props.userRole === 'superadmin') return 'kelola_peserta'; // Tambahin baris ini buat default-nya superadmin
+    if (props.userRole === 'admin') return 'kelola_peserta'; 
     if (props.userRole === 'farmasi') return 'antrian_obat';
     if (props.userRole === 'poli') return 'antrian_poli';
+    if (props.userRole === 'dokter') return 'pemeriksaan_dokter'; 
     return 'verifikasi';
 }
 
 const activeTab = ref(getDefaultTab())
+
+watchEffect(() => {
+  activeTab.value = getDefaultTab()
+})
 
 const handleTabChange = (tabName) => {
   activeTab.value = tabName
@@ -81,15 +92,17 @@ const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value
 }
 
-// JUDUL HEADER: Tambahkan judul untuk menu Poli
 const headerTitle = computed(() => {
   const titles = {
     'verifikasi': 'Verifikasi JPPK',
-    'data_peserta': 'Riwayat Pasien Terdaftar', // Nama baru buat Poli
+    'data_peserta': 'Riwayat Pasien Terdaftar',
     'riwayat': 'Riwayat Pendaftaran',
     'antrian_obat': 'Antrian Obat Farmasi',
     'riwayat_obat': 'Riwayat Pengambilan Obat',
-    'antrian_poli': 'Panggilan Antrian Poli' // Judul Baru
+    'antrian_poli': 'Panggilan Antrian Poli',
+    'pemeriksaan_dokter': 'Ruang Pemeriksaan Medis Dokter',
+    'kelola_peserta': 'Panel Kontrol Admin & Registrasi Biometrik Pasien',
+    'laporan_pendaftaran': 'Laporan & Rekapitulasi Pendaftaran Antrean' 
   }
   return titles[activeTab.value] || 'Dashboard'
 })

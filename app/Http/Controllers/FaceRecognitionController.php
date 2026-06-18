@@ -23,7 +23,7 @@ class FaceRecognitionController extends Controller
 
         // 3. Jalankan Python (Jika di Mac/Linux, ubah 'python' jadi 'python3')
         $pythonScript = base_path('ai-scripts/face_check.py');
-$process = new Process(['python', $pythonScript, $imagePath]);
+        
 
 // Tambahkan baris ini untuk mengatasi error HashRandomization di Windows
 $process->setEnv([
@@ -32,7 +32,8 @@ $process->setEnv([
 ]);
 
 $process->setTimeout(30);
-$process->run();$process = new Process(['python', $pythonScript, $imagePath]);
+$process->run();
+$process = new Process(['python', $pythonScript, $imagePath]);
 
 // Tambahkan baris ini untuk mengatasi error HashRandomization di Windows
 $process->setEnv([
@@ -59,11 +60,13 @@ $process->run();
         $output = json_decode($process->getOutput(), true);
 
         // 5. Jika AI mengenali wajah (misal outputnya = Rasyid_Halim.jpeg)
-        if (isset($output['status']) && $output['status'] === 'success') {
+if (isset($output['status']) && $output['status'] === 'success') {
             
-            // Cari data di tabel MySQL berdasarkan nama file
-            $pasien = DB::table('peserta_jppk')
-                        ->where('face_image_path', $output['nama_file'])
+            // Cari data di tabel MySQL dan JOIN ke tabel units
+            $pasien = DB::table('peserta_jppk AS p')
+                        ->leftJoin('units AS u', 'p.unit_id', '=', 'u.id')
+                        ->select('p.nama_peserta', 'p.no_jppk', 'p.divisi', 'u.nama_unit AS perusahaan', 'p.tgl_lahir')
+                        ->where('p.face_image_path', $output['nama_file'])
                         ->first();
 
             if ($pasien) {
@@ -71,14 +74,13 @@ $process->run();
                     'status' => 'success',
                     'nama' => $pasien->nama_peserta,
                     'no_jppk' => $pasien->no_jppk,
-                    'unit' => $pasien->nama_unit,
+                    'divisi' => $pasien->divisi ?? '-', 
+                    'unit' => $pasien->perusahaan ?? '-', // Otomatis ngambil dari tabel units
                     'ttl' => $pasien->tgl_lahir
                 ]);
             } else {
                 return response()->json(['status' => 'failed', 'message' => 'Wajah terdeteksi, tapi data tidak ditemukan di Database.']);
             }
         }
-
-        return response()->json($output); // Kembalikan pesan error/gagal dari Python
     }
 }

@@ -85,6 +85,7 @@
       </div>
 
       <div v-else class="space-y-6 animate-fade-in-up">
+        
         <div class="bg-emerald-50 border-2 border-emerald-100 p-6 rounded-[2rem]">
           <p class="text-[10px] text-emerald-600 font-black uppercase tracking-widest mb-2">Peserta Terverifikasi ✅</p>
           <h2 class="text-3xl font-black text-slate-800 leading-tight">{{ userData.nama }}</h2>
@@ -95,20 +96,65 @@
         </div>
 
         <div class="space-y-4">
-          <h3 class="text-lg font-black text-slate-700 flex items-center">
-            <span class="w-2 h-6 bg-orange-500 rounded-full mr-3"></span>Pilih Poliklinik Tujuan
-          </h3>
-          <div class="grid grid-cols-2 gap-3">
-            <button v-for="poli in ['Poli Umum', 'Poli Gigi', 'Poli Mata', 'Poli Penyakit Dalam', 'Poli Anak']" :key="poli"
-              @click="selectedPoli = poli"
-              :class="selectedPoli === poli ? 'bg-orange-500 text-white border-orange-500 scale-[1.02] shadow-lg' : 'bg-white text-slate-600 border-slate-200'"
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h3 class="text-lg font-black text-slate-700 flex items-center">
+              <span class="w-2 h-6 bg-orange-500 rounded-full mr-3"></span>Pilih Poliklinik
+            </h3>
+            
+            <div class="relative w-full sm:w-1/2">
+              <input 
+                v-model="searchQueryPoli" 
+                type="text" 
+                placeholder="Cari poli..." 
+                class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-emerald-500 transition-all text-slate-700"
+              >
+              <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+          </div>
+
+          <div v-if="filteredPoliklinik.length === 0" class="text-center py-4 bg-slate-50 rounded-xl border border-slate-100">
+            <p class="text-xs font-bold text-slate-400">Poliklinik tidak ditemukan.</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-1 pb-1">
+            <button v-for="poli in filteredPoliklinik" :key="poli.id"
+              @click="pilihPoliklinik(poli)"
+              :class="selectedPoli?.id === poli.id ? 'bg-orange-500 text-white border-orange-500 scale-[1.02] shadow-lg' : 'bg-white text-slate-600 border-slate-200'"
               class="py-4 px-2 rounded-2xl text-[11px] font-black transition-all border-2 text-center uppercase tracking-tighter">
-              {{ poli }}
+              {{ poli.nama_poli }}
             </button>
           </div>
 
-          <button v-if="selectedPoli" @click="finishRegistration" class="w-full mt-4 py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95">
-            DAFTAR KE {{ selectedPoli.toUpperCase() }}
+          <div v-if="selectedPoli" class="space-y-3 mt-6 animate-fade-in-up">
+            <h3 class="text-lg font-black text-slate-700 flex items-center">
+              <span class="w-2 h-6 bg-emerald-500 rounded-full mr-3"></span>Pilih Dokter & Jam Praktek
+            </h3>
+            
+            <p v-if="listDokter.length === 0" class="text-sm text-slate-400 italic">Tidak ada jadwal dokter untuk poliklinik ini hari ini.</p>
+            
+            <div v-else class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+              <button v-for="dokter in listDokter" :key="dokter.dokter_id"
+                @click="selectedDokter = dokter"
+                :disabled="dokter.status_loket !== 'BUKA'"
+                :class="[
+                  selectedDokter?.dokter_id === dokter.dokter_id ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-700 border-slate-200',
+                  dokter.status_loket !== 'BUKA' ? 'opacity-50 bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'hover:border-emerald-300'
+                ]"
+                class="p-4 rounded-2xl border-2 text-left transition-all flex justify-between items-center">
+                <div>
+                  <p class="font-black text-sm">{{ dokter.nama_dokter }}</p>
+                  <p class="text-xs font-medium opacity-80">{{ dokter.hari }} | {{ dokter.jam_mulai.substring(0,5) }} - {{ dokter.jam_selesai.substring(0,5) }} WIB</p>
+                  <p class="text-[10px] mt-0.5 font-bold">Kuota: {{ dokter.kuota_terisi }}/{{ dokter.kuota_maksimal }}</p>
+                </div>
+                <span :class="dokter.status_loket === 'BUKA' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'" class="text-[10px] font-black px-2 py-1 rounded-md">
+                  {{ dokter.status_loket }}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <button v-if="selectedPoli && selectedDokter" @click="finishRegistration" class="w-full mt-4 py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95">
+            DAFTAR KE {{ selectedPoli.nama_poli.toUpperCase() }}
           </button>
         </div>
       </div>
@@ -121,9 +167,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 
-// ==========================================
-// STATE UNTUK KAMERA & PENDAFTARAN
-// ==========================================
+// STATE UTUK KAMERA & DATA
 const videoElement = ref(null);
 const canvasElement = ref(null);
 
@@ -132,14 +176,33 @@ const isAutoDetecting = ref(false);
 const cameraActive = ref(false);
 
 const userData = ref(null);
-const selectedPoli = ref(null);
-const results = ref(null);
 const scale = ref({ x: 1, y: 1 });
+const results = ref(null);
+
+const listPoliklinik = ref([]);
+const selectedPoli = ref(null);
+const listDokter = ref([]);
+const selectedDokter = ref(null);
+
+// 🚨 STATE BARU UNTUK SEARCH POLI
+const searchQueryPoli = ref('');
 
 let mediaStream = null;
 let autoDetectInterval = null;
 
-// 1. Inisialisasi Kamera
+// ==========================================
+// 🚨 FILTER POLIKLINIK BERDASARKAN SEARCH
+// ==========================================
+const filteredPoliklinik = computed(() => {
+  if (!searchQueryPoli.value) return listPoliklinik.value;
+  return listPoliklinik.value.filter(poli => 
+    poli.nama_poli.toLowerCase().includes(searchQueryPoli.value.toLowerCase())
+  );
+});
+
+// ==========================================
+// 1. LOGIKA KAMERA & AI
+// ==========================================
 const startCamera = async () => {
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 1280, height: 720 } });
@@ -152,7 +215,6 @@ const startCamera = async () => {
   }
 };
 
-// 2. Kalkulasi Skala Resolusi
 const calculateScale = () => {
   if (videoElement.value && videoElement.value.videoWidth > 0) {
     scale.value.x = videoElement.value.clientWidth / videoElement.value.videoWidth;
@@ -160,7 +222,6 @@ const calculateScale = () => {
   }
 };
 
-// 3. Eksekusi Pengiriman Gambar ke FastAPI Python
 const scanFrame = () => {
   if (!videoElement.value || !canvasElement.value || isScanning.value || userData.value) return;
 
@@ -209,7 +270,6 @@ const scanFrame = () => {
   }, 'image/jpeg', 0.8);
 };
 
-// 4. Kontrol Tombol Mulai/Berhenti Scan
 const toggleScanning = () => {
   if (isAutoDetecting.value) {
     clearInterval(autoDetectInterval);
@@ -217,9 +277,13 @@ const toggleScanning = () => {
     results.value = null;
     userData.value = null;
     selectedPoli.value = null;
+    selectedDokter.value = null;
+    searchQueryPoli.value = ''; // Reset search
   } else {
     userData.value = null; 
     selectedPoli.value = null;
+    selectedDokter.value = null;
+    searchQueryPoli.value = ''; // Reset search
     isAutoDetecting.value = true;
     
     scanFrame(); 
@@ -227,7 +291,6 @@ const toggleScanning = () => {
   }
 };
 
-// 5. Menggambar Kotak AI di Layar
 const drawnBoxes = computed(() => {
   if (!results.value || !results.value.data) return [];
   calculateScale(); 
@@ -243,33 +306,54 @@ const drawnBoxes = computed(() => {
   });
 });
 
-// 6. Selesai Pendaftaran & Kirim WA
-const finishRegistration = async () => {
-  if (!selectedPoli.value) return;
+// ==========================================
+// 2. LOGIKA POLI & DOKTER
+// ==========================================
+const fetchPoliklinik = async () => {
+  try {
+    const response = await axios.get('http://127.0.0.1:8000/api/kiosk/poliklinik');
+    listPoliklinik.value = response.data;
+  } catch (error) {
+    console.error("Gagal mengambil poliklinik dari DB:", error);
+  }
+};
+
+const pilihPoliklinik = async (poli) => {
+  selectedPoli.value = poli;
+  selectedDokter.value = null; 
+  listDokter.value = [];       
 
   try {
-    // Menembak API Laravel (Port 8000)
-    // Data yang dikirim: { no_jppk, poli }
+    const response = await axios.get(`http://127.0.0.1:8000/api/kiosk/dokter/${poli.id}`);
+    listDokter.value = response.data;
+  } catch (error) {
+    console.error("Gagal memuat jadwal dokter:", error);
+  }
+};
+
+const finishRegistration = async () => {
+  if (!selectedPoli.value || !selectedDokter.value) return;
+
+  try {
     const response = await axios.post('http://127.0.0.1:8000/api/daftar-antrian', {
       no_jppk: userData.value.no_jppk, 
-      poli: selectedPoli.value
+      
+      // 🚨 PERBAIKAN KRUSIAL: Mengirim jadwal_dokter_id sesuai permintaan FonnteController
+      jadwal_dokter_id: selectedDokter.value.jadwal_dokter_id 
     });
 
-    // Cek respon sukses dari server
     if (response.data.status === 'success') {
+      alert(`✅ PENDAFTARAN BERHASIL!\n\nNama: ${userData.value.nama}\nPoli: ${selectedPoli.value.nama_poli}\nDokter: ${selectedDokter.value.nama_dokter}\nNo Antrian: ${response.data.antrian}`);
       
-      // --- PERUBAHAN DI SINI Mang ---
-      // Kita baca key 'poli' dari Laravel (response.data.poli)
-      alert(`✅ PENDAFTARAN BERHASIL!\n\nNama: ${userData.value.nama}\nPoli: ${response.data.poli}\nNo Antrian: ${response.data.antrian}`);
-      // --------------------------------
-      
-      // Reset Tampilan
       userData.value = null;
       selectedPoli.value = null;
+      selectedDokter.value = null;
+      listDokter.value = [];
+      searchQueryPoli.value = '';
     }
     
   } catch (error) {
-    console.error("Detail Error:", error.response);
+    console.error("Detail Error Pendaftaran:", error.response);
     alert("❌ Gagal daftar: " + (error.response?.data?.message || "Server tidak merespon"));
   }
 };
@@ -279,6 +363,7 @@ const finishRegistration = async () => {
 // ==========================================
 onMounted(() => {
   startCamera();
+  fetchPoliklinik(); 
   window.addEventListener('resize', calculateScale);
 });
 
@@ -294,4 +379,9 @@ onBeforeUnmount(() => {
 .animate-scan { animation: scan 2s infinite linear; }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 .animate-fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+/* Custom Scrollbar untuk Box Poli & Dokter supaya tidak bablas ke bawah */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 </style>

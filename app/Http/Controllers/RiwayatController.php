@@ -8,21 +8,25 @@ use Illuminate\Support\Facades\DB;
 class RiwayatController extends Controller
 {
     /**
-     * Mengambil semua riwayat pendaftaran poli
+     * Mengambil semua riwayat pendaftaran poli (Sudah diperbaiki dengan JOIN)
      */
     public function index()
     {
         try {
-            // Langsung ambil dari tabel antrians saja Mang.
-            // Tidak perlu JOIN ke peserta_jppk, biar cepet.
+            // Kita gabungkan tabel antrians dengan peserta_jppk berdasarkan no_jppk
             $riwayat = DB::table('antrians')
+                ->join('peserta_jppk', 'antrians.no_jppk', '=', 'peserta_jppk.no_jppk')
+                ->select(
+                    'antrians.*', 
+                    'peserta_jppk.nama_peserta' // Menarik kolom nama_peserta agar bisa tampil di riwayat
+                )
                 // Urutkan berdasarkan ID terbaru biar pendaftaran terakhir paling atas
-                ->orderBy('id', 'desc') 
+                ->orderBy('antrians.id', 'desc') 
                 ->get();
 
             return response()->json([
                 'status' => 'success',
-                'data' => $riwayat // Data yang dikirim adalah data asli antrians
+                'data' => $riwayat 
             ], 200);
 
         } catch (\Exception $e) {

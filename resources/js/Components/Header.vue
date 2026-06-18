@@ -14,17 +14,21 @@ const props = defineProps({
   }
 });
 
-// Logika nama role utama dinamis
+// Logika nama role utama dinamis (Ditambahkan untuk Dokter)
 const tampilanNamaRole = computed(() => {
   if (props.userRole === 'farmasi') return 'Petugas Farmasi';
   if (props.userRole === 'poli') return 'Petugas Poliklinik';
+  if (props.userRole === 'dokter') return 'Dokter Spesialis';
+  if (props.userRole === 'admin') return 'Super Admin Eksekutif'; // 🚨 TAMBAHAN KHUSUS DOKTER
   return 'Admin Loket JPPK'; // Default untuk 'loket'
 });
 
-// Logika sub-nama/bagian dinamis
+// Logika sub-nama/bagian dinamis (Ditambahkan untuk Dokter)
 const tampilanSubRole = computed(() => {
   if (props.userRole === 'farmasi') return 'Instalasi Farmasi';
   if (props.userRole === 'poli') return 'Pelayanan Poli';
+  if (props.userRole === 'dokter') return 'Ruang Pemeriksaan Medis'; 
+  if (props.userRole === 'admin') return 'Direktorat IT RS Pindad';// 🚨 TAMBAHAN KHUSUS DOKTER
   return 'Petugas Pendaftaran'; // Default untuk 'loket'
 });
 </script>

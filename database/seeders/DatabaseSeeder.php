@@ -15,10 +15,10 @@ class DatabaseSeeder extends Seeder
 {
 
     \App\Models\User::create([
-        'name' => 'Petugas Poli',
-        'username' => 'poli123',
-        'password' => bcrypt('password'),
-        'role' => 'poli',
+    'name' => 'Super Admin Pindad',
+    'username' => 'admin.pindad',
+    'password' => bcrypt('admin123'),
+    'role' => 'admin',
     ]);
 
 }

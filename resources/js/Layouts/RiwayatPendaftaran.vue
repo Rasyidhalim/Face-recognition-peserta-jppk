@@ -53,20 +53,20 @@
 
             <td class="py-4 px-6">
                 <p class="text-sm font-black text-slate-800 uppercase tracking-tight">
-                {{ item.nama_pasien }} </p>
+                {{ item.nama_peserta }} 
+                </p>
                 <p class="text-xs font-bold text-slate-400 mt-0.5">
                 ID: {{ item.no_jppk }}
                 </p>
             </td>
 
             <td class="py-4 px-6 text-sm font-bold text-emerald-700 uppercase">
-                {{ item.poli }}
+                {{ item.poli ? item.poli : 'Poli (ID: ' + item.jadwal_dokter_id + ')' }}
             </td>
 
             <td class="py-4 px-6">
                 <span class="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-full border border-emerald-200 uppercase">
-                Berhasil
-                </span>
+                {{ item.status }} </span>
             </td>
             </tr>
           </tbody>

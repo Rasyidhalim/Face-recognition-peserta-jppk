@@ -31,7 +31,7 @@ model = YOLO('yolov8n.pt')
 
 # --- 2. LOAD DATABASE & KONFIGURASI ---
 # Path absolut folder storage Laravel (Gunakan r di depan agar aman di Windows)
-LARAVEL_DATASET_PATH = r"C:\CIDD\SMST 8\SKRIPSI\jppk-rs-pindad\storage\app\dataset_wajah"
+LARAVEL_DATASET_PATH = r"D:\SKRIPSI\jppk-rs-pindad\storage\app\dataset_wajah"
 
 known_embeddings = {} 
 karyawan_info = {}    

@@ -3,131 +3,124 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\PesertaJppk;
-use App\Models\Unit;
-use App\Models\Plan;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PesertaImportSeeder extends Seeder
 {
     public function run()
     {
-        $file = database_path('data/JPPK PMU.csv');
+        // 1. Path lokasi file Excel asli Boss (pastikan sudah ditaruh di sini)
+        $filePath = storage_path('app/public/peserta_jppk.xlsx');
+
+        if (!file_exists($filePath)) {
+            $this->command->error("File 'peserta_jppk.xlsx' tidak ditemukan di folder storage/app/public/!");
+            return;
+        }
+
+        $this->command->info("Sedang membaca file Excel, mohon tunggu sebentar...");
+
+        // 2. Baca seluruh Sheet sekaligus menjadi Array
+        $allSheets = Excel::toArray([], $filePath);
         
-        if (!file_exists($file)) {
-            $this->command->error("File tidak ditemukan di: $file");
-            return;
-        }
+        $jumlahMasuk = 0;
 
-        // Matikan query log agar cepat
-        DB::connection()->disableQueryLog();
+        foreach ($allSheets as $sheetIndex => $rows) {
+            $this->command->info("Memproses baris data pada Sheet ke-" . ($sheetIndex + 1) . "...");
 
-        $this->command->info("Membaca file JPPK PMU.csv (Robust Mode)...");
-
-        // 1. Baca seluruh isi file sebagai satu string panjang
-        $rawContent = file_get_contents($file);
-
-        if (!$rawContent) {
-            $this->command->error("Gagal membaca isi file.");
-            return;
-        }
-
-        // 2. HAPUS BOM (Byte Order Mark) UTF-8 tersembunyi dari Excel
-        $bom = pack('H*', 'EFBBBF');
-        $rawContent = preg_replace("/^$bom/", '', $rawContent);
-
-        // 3. Normalisasi Newlines gaya Windows (\r\n) menjadi gaya Linux (\n)
-        $normalizedContent = str_replace(["\r\n", "\r"], "\n", $rawContent);
-
-        // 4. Pecah string panjang menjadi array baris-baris teks
-        $lines = explode("\n", $normalizedContent);
-
-        $rowCount = 0;
-        $invalidLines = 0;
-
-        $this->command->info("Memulai proses parsing manual...");
-
-        // Karena sudah unggah file, kita hardcode delimiter KOMA (,) agar pasti.
-        $delimiter = ",";
-
-        foreach ($lines as $index => $line) {
-            $currentLineNumber = $index + 1;
-
-            // A. Lewati 5 baris pertama (Judul Laporan, Header Kolom, Baris Kosong)
-            // Data utama mulai di baris ke-6 (Index 5)
-            if ($currentLineNumber < 6) continue;
-
-            // Skip jika baris benar-benar kosong
-            if (empty(trim($line))) continue;
-
-            // B. Gunakan str_getcsv untuk memecah teks baris menjadi array kolom
-            // Fungsi ini jauh lebih aman daripada explode(',') terhadap tanda kutip Excel
-            $data = str_getcsv($line, $delimiter);
-
-            // C. VALIDASI KRUSIAL: Cek jumlah kolom (Metdata CSV Anda ada 10 kolom)
-            if (count($data) < 10) {
-                // Catat ke log untuk debug jika ada baris yang formatnya aneh
-                Log::warning("Baris $currentLineNumber dilewati. Jumlah kolom tidak lengkap: " . count($data));
-                $invalidLines++;
-                continue; // LEWATI BARIS INI
-            }
-
-            // D. Ambil data mentah (Mapping pas berdasarkan file CSV Anda)
-            $namaPesertaVal = trim($data[1]);
-            $noJppkVal      = trim($data[2]); // Primary Key (Contoh: 11150.1)
-            $jkVal          = strtoupper(trim($data[3])); // KELAMIN
-            $tglLahirVal    = trim($data[4]); // TGL. LAHIR (Sudah YYYY-MM-DD)
-            $eselonVal      = trim($data[6]); // ESELON (Contoh: 'A', 'C', 'VIA')
-            $planNomorVal   = trim($data[7]); // PLAN (Contoh: 1 atau 2)
-            $nppVal         = trim($data[8]); // NPP
-            $namaUnitVal    = trim($data[9]); // UNIT
-
-            // E. Validasi: No JPPK tidak boleh kosong dan bukan teks header berulang
-            if (empty($noJppkVal) || $noJppkVal == 'NO. JPPK') continue;
-
-            try {
-                DB::beginTransaction();
-
-                // F. Olah Master Data (Cari atau Buat baru)
-                $unit = Unit::firstOrCreate(['nama_unit' => $namaUnitVal]);
+            foreach ($rows as $data) {
                 
-                $planName = 'Kelas ' . ($planNomorVal ?: '2');
-                $plan = Plan::firstOrCreate(
-                    ['nama_plan' => $planName],
-                    ['eselon_range' => $eselonVal ?: '-']
-                );
+                // ANTISIPASI BARIS KOSONG & HEADER
+                if (empty($data) || !isset($data[2]) || (trim($data[0] ?? '') == '' && trim($data[2] ?? '') == '')) {
+                    continue;
+                }
+                if (trim($data[0] ?? '') == 'NO.' || trim($data[1] ?? '') == 'NO. JPPK' || trim($data[3] ?? '') == 'NAMA PESERTA') {
+                    continue;
+                }
 
-                // G. Masukkan / Update data Peserta
-                PesertaJppk::updateOrCreate(
-                    ['no_jppk' => $noJppkVal],
-                    [
-                        'npp'           => $nppVal,
-                        'nama_peserta'  => $namaPesertaVal,
-                        'jenis_kelamin' => in_array($jkVal, ['L', 'P']) ? $jkVal : 'L',
-                        // Tanggal sudah standard MySQL, langsung save
-                        'tgl_lahir'     => ($tglLahirVal && $tglLahirVal != '-') ? $tglLahirVal : '1900-01-01',
-                        'unit_id'       => $unit->id,
-                        'plan_id'       => $plan->id,
-                    ]
-                );
+                // Ambil data primary key dan npp
+                $noJppk = trim($data[1] ?? '');
+                $npp    = trim($data[2] ?? '');
+                $noUrut = trim($data[0] ?? '0');
 
-                DB::commit();
-                $rowCount++;
+                // Jika nomor JPPK kosong (kasus sheet Tanggungan), buat nomor bayangan unik
+                if (empty($noJppk)) {
+                    $noJppk = $npp . '.T' . $noUrut;
+                }
 
-            } catch (\Exception $e) {
-                DB::rollBack();
-                // Catat error fatal ke storage/logs/laravel.log
-                Log::error("Gagal mengimport Baris CSV $currentLineNumber (JPPK $noJppkVal): " . $e->getMessage());
-                $this->command->error("Error fatal pada Baris $currentLineNumber (Cek laravel.log)");
+                // Ambil data teks mentah dari kolom Excel untuk relasi
+                $txtStrata     = trim($data[9] ?? '-');
+                $txtHakRanap   = trim($data[10] ?? 'Kelas Standar');
+                $txtDivisi     = trim($data[11] ?? '');
+                $txtPerusahaan = trim($data[12] ?? '');
+
+                // 3. COCOKKAN DENGAN TABEL `plans` (Kolom: nama_plan, eselon_range)
+                $namaPlan   = $txtHakRanap ?: 'Kelas Standar';
+                $eselonRange = $txtStrata ?: '-';
+
+                $plan = DB::table('plans')
+                    ->where('nama_plan', $namaPlan)
+                    ->where('eselon_range', $eselonRange)
+                    ->first();
+
+                $planId = $plan ? $plan->id : DB::table('plans')->insertGetId([
+                    'nama_plan'    => $namaPlan,
+                    'eselon_range' => $eselonRange,
+                    'created_at'   => now(),
+                    'updated_at'   => now()
+                ]);
+
+                // 4. COCOKKAN DENGAN TABEL `units` (Kolom: nama_unit)
+                // Kita prioritaskan nama Perusahaan, jika kosong pakai nama Divisi
+                $namaUnit = $txtPerusahaan ?: ($txtDivisi ?: 'PT PINDAD MEDIKA UTAMA');
+
+                $unit = DB::table('units')->where('nama_unit', $namaUnit)->first();
+
+                $unitId = $unit ? $unit->id : DB::table('units')->insertGetId([
+                    'nama_unit'  => $namaUnit,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+
+                // 5. CEK DUPLIKAT & INPUT KE `peserta_jppk`
+                $cekData = DB::table('peserta_jppk')->where('no_jppk', $noJppk)->first();
+                
+                if (!$cekData) {
+                    // Proteksi Format Tanggal khusus Excel
+                    $tglRaw = $data[6] ?? '1970-01-01';
+                    if (is_numeric($tglRaw)) {
+                        $tglLahir = date('Y-m-d', \PhpOffice\PhpSpreadsheet\Shared\Date::excelToTimestamp($tglRaw));
+                    } else {
+                        $tglLahir = (!empty($tglRaw) && strtotime($tglRaw)) ? date('Y-m-d', strtotime($tglRaw)) : '1970-01-01';
+                    }
+
+                    // Normalisasi Jenis Kelamin agar masuk Enum ('L','P')
+                    $jkRaw = strtoupper(trim($data[8] ?? 'L'));
+                    $jenisKelamin = (str_starts_with($jkRaw, 'P')) ? 'P' : 'L';
+
+                    // Cek nomor telepon jika ada di kolom excel, atau set null
+                    $noTelp = trim($data[7] ?? null);
+
+                    DB::table('peserta_jppk')->insert([
+                        'no_jppk'         => $noJppk,
+                        'npp'             => $npp != '' ? $npp : $noJppk,
+                        'nama_peserta'    => strtoupper(trim($data[3] ?? 'PESERTA TANPA NAMA')),
+                        'jenis_kelamin'   => $jenisKelamin,
+                        'tgl_lahir'       => $tglLahir,
+                        'no_telp'         => $noTelp ?: null,
+                        'unit_id'         => $unitId,     
+                        'plan_id'         => $planId,     
+                        'face_image_path' => null, // default null sesuai struktur DB asli
+                        'face_embedding'  => null, // default null sesuai struktur DB asli
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                    $jumlahMasuk++;
+                }
             }
         }
 
-        $this->command->info("---------------------------------");
-        $this->command->info("SELESAI!");
-        $this->command->info("Berhasil diimport/sync: $rowCount data pasien ke database.");
-        if ($invalidLines > 0) {
-            $this->command->comment("Baris rusak/terpotong yang dilewati: $invalidLines baris (Cek laravel.log untuk detail).");
-        }
+        $this->command->info("Mantap Boss! Sukses mencocokkan dan membaca langsung dari file Excel.");
+        $this->command->info("Total " . $jumlahMasuk . " data peserta baru berhasil disinkronkan ke tabel database asli Boss.");
     }
 }
