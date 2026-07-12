@@ -1,12 +1,14 @@
 <template>
   <aside 
+    @mouseenter="$emit('update:isOpen', true)"
+    @mouseleave="$emit('update:isOpen', false)"
     :class="[isOpen ? 'w-72 translate-x-0' : 'w-0 -translate-x-full md:w-20 md:translate-x-0 overflow-hidden']"
     class="bg-emerald-950 text-white flex flex-col shadow-2xl relative z-20 transition-all duration-300 ease-in-out transform shrink-0"
   >
-    <div class="p-8 flex items-center gap-3 transition-all duration-300" :class="{ 'md:p-5 md:justify-center': !isOpen }">
-        <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 font-black text-xl overflow-hidden shrink-0">
-            <img src="/logo-rs-pindad.jpg" alt="Logo" class="w-full h-full object-contain">
-        </div>
+   <div class="p-8 flex items-center gap-3 transition-all duration-300" :class="{ 'md:p-5 md:justify-center': !isOpen }">
+    <div class="w-10 h-10 bg-white p-1 rounded-xl flex items-center justify-center shadow-lg font-black text-xl overflow-hidden shrink-0">
+        <img src="/logo-rs-pindad-removebg-preview.png" alt="Logo" class="w-full h-full object-contain">
+    </div>
         <div v-if="isOpen" class="transition-all duration-300 whitespace-nowrap">
             <h1 class="text-xl font-black tracking-tighter leading-none">Rs <span class="text-emerald-500">Pindad</span></h1>
             <p class="text-[10px] font-bold text-emerald-400/60 uppercase tracking-widest mt-1">Smart Health System</p>
@@ -15,51 +17,75 @@
 
     <nav class="flex-1 px-4 space-y-1 mt-4">
         
-        <!-- 1. Pendaftaran (Loket / Superadmin) -->
         <div v-if="userRole === 'loket' || userRole === 'superadmin'" class="space-y-1">
             <p v-if="isOpen" class="px-4 text-[10px] font-black text-emerald-500/40 uppercase tracking-[0.2em] mb-2">Pendaftaran</p>
-            <button @click="$emit('change-menu', 'verifikasi')" :class="[activeMenu === 'verifikasi' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group">
+            
+            <button @click="$emit('change-menu', 'verifikasi')" :class="[activeMenu === 'verifikasi' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group" title="Verifikasi JPPK">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 shrink-0 transition-transform group-hover:scale-110">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
                 <span v-if="isOpen" class="font-bold text-sm whitespace-nowrap">Verifikasi JPPK</span>
-                <span v-else class="font-black text-xs text-emerald-400 hidden md:block" title="Verifikasi JPPK">VJ</span>
             </button>
-            <button @click="$emit('change-menu', 'riwayat')" :class="[activeMenu === 'riwayat' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group">
+            
+            <button @click="$emit('change-menu', 'riwayat')" :class="[activeMenu === 'riwayat' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group" title="Riwayat Daftar">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 shrink-0 transition-transform group-hover:scale-110">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
                 <span v-if="isOpen" class="font-bold text-sm whitespace-nowrap">Riwayat Daftar</span>
-                <span v-else class="font-black text-xs text-emerald-400 hidden md:block" title="Riwayat Daftar">RD</span>
             </button>
         </div>
 
-        <!-- 2. Pelayanan Poli (Poli / Superadmin) -->
         <div v-if="userRole === 'poli' || userRole === 'superadmin'" class="space-y-1">
-            <p v-if="isOpen" class="px-4 text-[10px] font-black text-emerald-500/40 uppercase tracking-[0.2em] mb-2">Pelayanan Poli</p>
-            <button @click="$emit('change-menu', 'antrian_poli')" :class="[activeMenu === 'antrian_poli' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group">
+            <p v-if="isOpen" class="px-4 text-[10px] font-black text-emerald-500/40 uppercase tracking-[0.2em] mb-2 mt-4">Pelayanan Poli</p>
+            
+            <button @click="$emit('change-menu', 'antrian_poli')" :class="[activeMenu === 'antrian_poli' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group" title="Panggilan Antrian">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 shrink-0 transition-transform group-hover:scale-110">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+                </svg>
                 <span v-if="isOpen" class="font-bold text-sm whitespace-nowrap">Panggilan Antrian</span>
-                <span v-else class="font-black text-xs text-emerald-400 hidden md:block" title="Panggilan Antrian">PA</span>
             </button>
-            <button @click="$emit('change-menu', 'data_peserta')" :class="[activeMenu === 'data_peserta' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group">
+            
+            <button @click="$emit('change-menu', 'data_peserta')" :class="[activeMenu === 'data_peserta' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group" title="Riwayat Antrian Poli">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 shrink-0 transition-transform group-hover:scale-110">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                </svg>
                 <span v-if="isOpen" class="font-bold text-sm whitespace-nowrap">Riwayat Antrian Poli</span>
-                <span v-else class="font-black text-xs text-emerald-400 hidden md:block" title="Riwayat Antrian Poli">RAP</span>
             </button>
         </div>
 
-        <!-- 3. Manajemen Sistem (Admin / Superadmin) -->
         <div v-if="userRole === 'admin' || userRole === 'superadmin'" class="space-y-1">
-            <p v-if="isOpen" class="px-4 text-[10px] font-black text-emerald-500/40 uppercase tracking-[0.2em] mb-2">Manajemen Sistem</p>
-            <button @click="$emit('change-menu', 'kelola_peserta')" :class="[activeMenu === 'kelola_peserta' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group">
-                <span v-if="isOpen" class="font-bold text-sm whitespace-nowrap">⚙️ Kelola & Registrasi Pasien</span>
-                <span v-else class="text-base hidden md:block" title="Kelola & Registrasi Pasien">⚙️</span>
+            <p v-if="isOpen" class="px-4 text-[10px] font-black text-emerald-500/40 uppercase tracking-[0.2em] mb-2 mt-4">Manajemen Sistem</p>
+            
+            <button @click="$emit('change-menu', 'kelola_peserta')" :class="[activeMenu === 'kelola_peserta' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group" title="Kelola & Registrasi Pasien">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 shrink-0 transition-transform group-hover:scale-110">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                </svg>
+                <span v-if="isOpen" class="font-bold text-sm whitespace-nowrap">Kelola & Registrasi Pasien</span>
             </button>
-            <button @click="$emit('change-menu', 'laporan_pendaftaran')" :class="[activeMenu === 'laporan_pendaftaran' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group">
-                <span v-if="isOpen" class="font-bold text-sm whitespace-nowrap">📋 Laporan Pendaftaran</span>
-                <span v-else class="text-base hidden md:block" title="Laporan Pendaftaran">📋</span>
+            
+            <button @click="$emit('change-menu', 'laporan_pendaftaran')" :class="[activeMenu === 'laporan_pendaftaran' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group" title="Laporan Pendaftaran">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 shrink-0 transition-transform group-hover:scale-110">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+                <span v-if="isOpen" class="font-bold text-sm whitespace-nowrap">Laporan Pendaftaran</span>
             </button>
         </div>
 
-        <!-- 4. Medis Dokter (Dokter / Superadmin) -->
         <div v-if="userRole === 'dokter' || userRole === 'superadmin'" class="space-y-1">
-            <p v-if="isOpen" class="px-4 text-[10px] font-black text-emerald-500/40 uppercase tracking-[0.2em] mb-2">Medis Dokter</p>
-            <button @click="$emit('change-menu', 'pemeriksaan_dokter')" :class="[activeMenu === 'pemeriksaan_dokter' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group">
+            <p v-if="isOpen" class="px-4 text-[10px] font-black text-emerald-500/40 uppercase tracking-[0.2em] mb-2 mt-4">Medis Dokter</p>
+            
+            <button @click="$emit('change-menu', 'pemeriksaan_dokter')" :class="[activeMenu === 'pemeriksaan_dokter' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group" title="Pemeriksaan Pasien">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 shrink-0 transition-transform group-hover:scale-110">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+                </svg>
                 <span v-if="isOpen" class="font-bold text-sm whitespace-nowrap">Pemeriksaan Pasien</span>
-                <span v-else class="font-black text-xs text-emerald-400 hidden md:block" title="Pemeriksaan Pasien">PP</span>
+            </button>
+
+            <button @click="$emit('change-menu', 'riwayat_medis_dokter')" :class="[activeMenu === 'riwayat_medis_dokter' ? 'bg-emerald-800 text-white shadow-lg' : 'text-emerald-100/50 hover:bg-emerald-900', !isOpen ? 'md:justify-center md:px-0' : '']" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all group" title="Riwayat Medis">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 shrink-0 transition-transform group-hover:scale-110">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                </svg>
+                <span v-if="isOpen" class="font-bold text-sm whitespace-nowrap">Riwayat Medis</span>
             </button>
         </div>
 
@@ -83,9 +109,10 @@ defineProps({
     activeMenu: String,
     isOpen: {
         type: Boolean,
-        default: true
+        default: false // Set default ke false agar saat pertama kali buka langsung mode kecil
     }
 });
 
-defineEmits(['change-menu']);
+// Daftarkan event 'update:isOpen' agar bisa berkomunikasi dengan Layout Utama
+defineEmits(['change-menu', 'update:isOpen']);
 </script>

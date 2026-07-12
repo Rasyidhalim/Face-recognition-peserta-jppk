@@ -32,7 +32,10 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Password</label>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest">Password</label>
+              <button type="button" @click="handleLupaPassword" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline transition-all outline-none">Lupa password?</button>
+            </div>
             <div class="relative">
               <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
@@ -65,36 +68,71 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import axios from 'axios' // PENTING: Jangan lupa import axios
+import axios from 'axios' 
+import Swal from 'sweetalert2' // 🌟 IMPORT SWEETALERT2
 
 const emit = defineEmits(['login-success'])
 
 const form = reactive({
-  username: '', // Sudah ganti dari email ke username
+  username: '', 
   password: ''
 })
 
 const isLoading = ref(false)
-const errorMessage = ref('') // Untuk menampung pesan error dari Laravel
+const errorMessage = ref('') 
+
+// Toast konfig untuk sukses login
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 1500,
+  timerProgressBar: true
+});
+
+const handleLupaPassword = () => {
+  Swal.fire({
+    icon: 'info',
+    title: 'Lupa Password?',
+    text: 'Silakan hubungi Administrator IT (Superadmin) RS Pindad untuk mereset password akun Anda.',
+    confirmButtonColor: '#10b981',
+    confirmButtonText: 'Tutup'
+  });
+}
 
 const handleLogin = async () => {
   isLoading.value = true
   errorMessage.value = ''
   
   try {
-    // Tembak API Login di Laravel
+    // 🌟 Relative path /login sudah benar, aman untuk Ngrok
     const response = await axios.post('/login', {
       username: form.username,
       password: form.password
     })
 
     if (response.data.status === 'success') {
+      // 🌟 Kasih Toast sukses biar keren sebelum dilempar ke dashboard
+      await Toast.fire({
+        icon: 'success',
+        title: 'Login Berhasil!',
+        text: 'Mengalihkan halaman...'
+      });
+      
       // Kirim ROLE dari database ke App.vue
       emit('login-success', response.data.user.role)
     }
   } catch (error) {
-    // Jika gagal (401), ambil pesan error dari LoginController
-    errorMessage.value = error.response?.data?.message || 'Gagal terhubung ke server'
+    const pesanError = error.response?.data?.message || 'Gagal terhubung ke server'
+    errorMessage.value = pesanError
+    
+    // 🌟 Tambahan SweetAlert modal biar kalau gagal petugas langsung ngeh
+    Swal.fire({
+      icon: 'error',
+      title: 'Akses Ditolak',
+      text: pesanError,
+      confirmButtonColor: '#ef4444'
+    });
   } finally {
     isLoading.value = false
   }

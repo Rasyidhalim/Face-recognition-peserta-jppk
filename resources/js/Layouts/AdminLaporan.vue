@@ -26,7 +26,7 @@
         </div>
 
         <div class="flex items-end gap-2">
-          <button @click="fetchLaporan" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition-all">
+          <button @click="fetchLaporan(true)" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition-all">
             Cari Data
           </button>
           <button @click="resetFilterLaporan" class="bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-xs px-4 py-2.5 rounded-xl transition-all">
@@ -59,9 +59,9 @@
             <tr v-if="listLaporan.length === 0">
               <td colspan="8" class="p-6 text-center text-slate-400 font-bold italic">Tidak ada data pendaftaran antrean.</td>
             </tr>
-            <tr v-for="lap in listLaporan" :key="lap.id" class="border-b border-slate-100 hover:bg-slate-50/80">
+            <tr v-for="lap in paginatedLaporan" :key="lap.id" class="border-b border-slate-100 hover:bg-slate-50/80">
               <td class="p-3 text-center font-black text-slate-700 bg-slate-50/50 text-sm">{{ lap.no_antrian }}</td>
-              <td class="p-3 font-medium text-slate-600">{{ lap.tanggal_daftar }}</td>
+              <td class="p-3 font-medium text-slate-600 whitespace-nowrap">{{ lap.tanggal_daftar }}</td>
               <td class="p-3 text-slate-500 font-mono">{{ lap.no_registrasi || '-' }}</td>
               <td class="p-3 font-bold text-blue-700 bg-blue-50/20">{{ lap.no_rm || 'Belum Ada' }}</td>
               <td class="p-3 font-bold text-slate-800">{{ lap.nama_pasien }}</td>
@@ -81,44 +81,135 @@
           </tbody>
         </table>
       </div>
-    </div>
 
+      <div v-if="listLaporan.length > 0" class="flex items-center justify-between border-t border-slate-100 pt-5 mt-5">
+        <div class="text-[11px] text-slate-500 font-bold">
+          Menampilkan {{ (currentPage - 1) * itemsPerPage + 1 }} - {{ Math.min(currentPage * itemsPerPage, listLaporan.length) }} dari {{ listLaporan.length }} Data
+        </div>
+        <div class="flex items-center gap-2">
+          <button 
+            @click="currentPage--" 
+            :disabled="currentPage === 1"
+            class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            Sebelumnya
+          </button>
+          <span class="text-xs font-black text-blue-800 bg-blue-50 px-4 py-2 rounded-xl border border-blue-100">
+            Halaman {{ currentPage }} / {{ totalPages }}
+          </span>
+          <button 
+            @click="currentPage++" 
+            :disabled="currentPage === totalPages"
+            class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            Selanjutnya
+          </button>
+        </div>
+      </div>
+
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+// 🔥 Tambahkan "computed" di import Vue
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import Swal from 'sweetalert2' 
 
 const listLaporan = ref([])
 const filterLaporan = ref({ tanggal: '', poli: '', dokter: '' })
 
-// Ambil data laporan pertama kali halaman dibuka
-onMounted(() => {
-  fetchLaporan()
+// ==========================================
+// 🔥 STATE & LOGIKA PAGINATION
+// ==========================================
+const currentPage = ref(1)
+const itemsPerPage = 10 // Tampilkan 10 data per halaman
+
+// Menghitung total jumlah halaman (contoh: 25 data = 3 halaman)
+const totalPages = computed(() => {
+  return Math.ceil(listLaporan.value.length / itemsPerPage) || 1
 })
 
-// Panggil API Backend
-const fetchLaporan = async () => {
+// Mengiris (slice) array data mentah agar hanya berisi 10 data per halamannya
+const paginatedLaporan = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return listLaporan.value.slice(start, end)
+})
+// ==========================================
+
+// Konfigurasi Toast Custom
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 2000,
+  timerProgressBar: true,
+  didOpen: (toast) => {
+    toast.onmouseenter = Swal.stopTimer;
+    toast.onmouseleave = Swal.resumeTimer;
+  }
+});
+
+onMounted(() => {
+  fetchLaporan(false) 
+})
+
+// Panggil API Backend (Tambah parameter isManual)
+const fetchLaporan = async (isManual = false) => {
+  if (isManual) {
+    Swal.fire({
+      title: 'Mencari Data...',
+      text: 'Mohon tunggu sebentar',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading()
+      }
+    });
+  }
+
   try {
-    const res = await axios.get('http://localhost:8000/api/admin/laporan-pendaftaran', {
+    const res = await axios.get('/api/admin/laporan-pendaftaran', {
       params: {
         tanggal: filterLaporan.value.tanggal,
         poli: filterLaporan.value.poli,
         dokter: filterLaporan.value.dokter
       }
     })
+    
     if (res.data.status === 'success') {
       listLaporan.value = res.data.data
+
+      // 🚀 RESET KE HALAMAN 1 JIKA MELAKUKAN PENCARIAN BARU
+      currentPage.value = 1
+
+      if (isManual) {
+        Swal.close();
+        Toast.fire({
+          icon: 'success',
+          title: `Ditemukan ${listLaporan.value.length} data`
+        });
+      }
     }
   } catch (error) {
     console.error("Gagal memuat laporan antrean:", error)
+    if (isManual) {
+      Swal.fire('Error!', 'Gagal menarik data dari server, Mang!', 'error')
+    } else {
+      Toast.fire({ icon: 'error', title: 'Gagal memuat data' });
+    }
   }
 }
 
 const resetFilterLaporan = () => {
   filterLaporan.value = { tanggal: '', poli: '', dokter: '' }
-  fetchLaporan()
+  fetchLaporan(false) // Tarik ulang data semua
+  
+  Toast.fire({
+    icon: 'info',
+    title: 'Filter dikembalikan ke awal'
+  });
 }
 </script>
 

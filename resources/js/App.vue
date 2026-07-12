@@ -12,53 +12,71 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue' // Tambahkan onMounted
-import axios from 'axios' // Impor Axios Mang
+import { ref, onMounted } from 'vue' 
+import axios from 'axios' 
+import Swal from 'sweetalert2' // 🚨 TAMBAHAN: Import SweetAlert di sini Mang
 import Login from './Pages/Login.vue'
 import Dashboard from './Pages/Dashboard.vue'
 
 const currentPage = ref('login')
-// STATE BARU: Untuk menampung siapa yang login
 const currentUserRole = ref('') 
 
-// --- STATE TAMBAHAN UNTUK HANDLE REFRESH ---
-// 1. Fungsi ini berjalan OTOMATIS saat komponen ini dimuat (saat F5)
+// --- HANDLE REFRESH ---
 onMounted(() => {
-  const storedRole = localStorage.getItem('user_role'); // Cek apakah ada role yang disimpan
+  const storedRole = localStorage.getItem('user_role'); 
 
   if (storedRole) {
-    // Kalau ada, berarti user sudah login sebelumnya dan session di Laravel mungkin masih hidup
     currentUserRole.value = storedRole;
     currentPage.value = 'dashboard';
   }
 })
 
 const handleLoginSuccess = (role) => {
-  // Simpan role yang dikirim dari Login.vue (hasil database)
   currentUserRole.value = role; 
-
-  // --- PERBAIKAN: Simpan juga di localStorage agar awet pas direfresh ---
   localStorage.setItem('user_role', role);
-
-  // Baru pindah halaman
   currentPage.value = 'dashboard';
 }
 
-const handleLogout = async () => { // Tambahkan async untuk panggilan API
-  const yakin = confirm("Apakah anda yakin ingin keluar?");
-  if (yakin) {
+// --- PERBAIKAN: LOGOUT DENGAN SWEETALERT ---
+const handleLogout = async () => {
+  // 1. Tampilkan Popup SweetAlert Konfirmasi
+  const konfirmasi = await Swal.fire({
+    title: 'Yakin ingin keluar?',
+    text: "Sesi Anda akan diakhiri dan Anda harus login kembali.",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444', // Merah
+    cancelButtonColor: '#94a3b8',  // Abu-abu
+    confirmButtonText: 'Ya, Keluar!',
+    cancelButtonText: 'Batal'
+  });
+
+  // 2. Jika user klik tombol "Ya, Keluar!"
+  if (konfirmasi.isConfirmed) {
+    
+    // Tampilkan animasi loading biar keren
+    Swal.fire({
+      title: 'Sedang keluar...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
     try {
-      // --- PERBAIKAN: Tembak API Logout Laravel agar Session di Server benar-benar mati ---
+      // Tembak API Logout Laravel
       await axios.post('http://localhost:8000/api/logout'); 
 
     } catch (error) {
       console.error("Gagal logout di server:", error);
-      // alert("Gagal keluar dari server. Cek koneksi.");
     } finally {
-      // --- FINALISASI: Bagian ini harus selalu dijalankan ---
+      // 3. Tutup SweetAlert loading
+      Swal.close();
+
+      // 4. Bersihkan state dan lempar ke halaman login
       currentPage.value = 'login';
-      currentUserRole.value = ''; // Kosongkan role saat logout
-      localStorage.removeItem('user_role'); // Hapus juga dari localStorage
+      currentUserRole.value = ''; 
+      localStorage.removeItem('user_role'); 
     }
   }
 }

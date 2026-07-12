@@ -8,7 +8,6 @@ use App\Http\Controllers\PesertaJppkController;
 use App\Http\Controllers\FonnteController;
 use App\Http\Controllers\DataPesertaController;
 use App\Http\Controllers\RiwayatController;
-use App\Http\Controllers\FarmasiController;
 use App\Http\Controllers\PoliController;
 use App\Http\Controllers\KioskController;
 use App\Http\Controllers\AdminPesertaController;
@@ -23,6 +22,8 @@ Route::post('/admin/peserta', [AdminPesertaController::class, 'store']);
 
 Route::put('/admin/peserta/{no_jppk}', [AdminPesertaController::class, 'update']);
 
+Route::delete('/peserta/hapus-wajah/{no_jppk}', [AdminPesertaController::class, 'hapusBiometrikWajah']);
+
 Route::post('/admin/peserta/registrasi-muka/{no_jppk}', [AdminPesertaController::class, 'registrasiMukaWa']);
 
 Route::delete('/admin/peserta/{no_jppk}', [AdminPesertaController::class, 'destroy']);
@@ -30,6 +31,7 @@ Route::delete('/admin/peserta/{no_jppk}', [AdminPesertaController::class, 'destr
 Route::get('/antrian-dokter', [FonnteController::class, 'getAntrianDokter']);
 
 Route::post('/selesai-periksa', [FonnteController::class, 'selesaiMedis']);
+
 // Route untuk kebutuhan Kiosk Mandiri (Poli & Dokter)
 Route::get('/kiosk/poliklinik', [KioskController::class, 'getPoliklinik']);
 
@@ -39,10 +41,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route biasa untuk ambil data poli
     Route::get('/data-antrian-poli', [PoliController::class, 'getAntrianPoli']);
 });
-
-Route::get('/farmasi/riwayat', [FarmasiController::class, 'riwayat']);
-
-Route::get('/farmasi/antrian', [FarmasiController::class, 'index']);
 
 Route::post('/farmasi/update-dan-notif', [FonnteController::class, 'notifObatFarmasi']);
 
@@ -59,3 +57,4 @@ Route::post('/fonnte/panggil-poli', [FonnteController::class, 'panggilPoli']);
 Route::get('/data-antrian-poli', [PoliController::class, 'getAntrianPoli']);
 
 Route::post('/panggil-poli', [FonnteController::class, 'panggilPoli']);
+

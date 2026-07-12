@@ -8,19 +8,30 @@ use Illuminate\Support\Facades\DB;
 class RiwayatController extends Controller
 {
     /**
-     * Mengambil semua riwayat pendaftaran poli (Sudah diperbaiki dengan JOIN)
+     * Mengambil semua riwayat pendaftaran poli dengan Nama Poli Asli (Menyesuaikan Database)
      */
     public function index()
     {
         try {
-            // Kita gabungkan tabel antrians dengan peserta_jppk berdasarkan no_jppk
             $riwayat = DB::table('antrians')
+                // 1. Hubungkan ke tabel peserta untuk ambil nama_peserta
                 ->join('peserta_jppk', 'antrians.no_jppk', '=', 'peserta_jppk.no_jppk')
+                
+                // 2. Hubungkan ke tabel jadwal_dokters berdasarkan jadwal_dokter_id
+                ->leftJoin('jadwal_dokters', 'antrians.jadwal_dokter_id', '=', 'jadwal_dokters.id')
+                
+                // 3. Hubungkan ke tabel dokters karena jadwal_dokters HANYA punya dokter_id
+                ->leftJoin('dokters', 'jadwal_dokters.dokter_id', '=', 'dokters.id')
+                
+                // 4. Barulah hubungkan ke tabel polis melalui poli_id yang ada di tabel dokters
+                ->leftJoin('polis', 'dokters.poli_id', '=', 'polis.id')
+                
                 ->select(
                     'antrians.*', 
-                    'peserta_jppk.nama_peserta' // Menarik kolom nama_peserta agar bisa tampil di riwayat
+                    'peserta_jppk.nama_peserta',
+                    'polis.nama_poli as nama_poli' // Mengunci nama poli murni agar bisa dipanggil di Vue
                 )
-                // Urutkan berdasarkan ID terbaru biar pendaftaran terakhir paling atas
+                // Urutkan pendaftaran terbaru di paling atas
                 ->orderBy('antrians.id', 'desc') 
                 ->get();
 
@@ -30,7 +41,6 @@ class RiwayatController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            // Catat error di laravel.log untuk kita cek nanti
             \Log::error("Gagal ambil riwayat: " . $e->getMessage());
 
             return response()->json([

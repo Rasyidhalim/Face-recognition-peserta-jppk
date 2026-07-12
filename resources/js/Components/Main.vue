@@ -46,7 +46,7 @@
             whiteSpace: 'nowrap',
             borderRadius: '0 0 8px 0'
           }">
-            {{ box.label }}
+            {{ box.label === 'TIDAK DIKENAL' ? 'TIDAK DIKENAL' : 'DIKENALI' }}
           </span>
         </div>
         
@@ -166,6 +166,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 // STATE UTUK KAMERA & DATA
 const videoElement = ref(null);
@@ -184,14 +185,14 @@ const selectedPoli = ref(null);
 const listDokter = ref([]);
 const selectedDokter = ref(null);
 
-// 🚨 STATE BARU UNTUK SEARCH POLI
+// STATE UNTUK SEARCH POLI
 const searchQueryPoli = ref('');
 
 let mediaStream = null;
 let autoDetectInterval = null;
 
 // ==========================================
-// 🚨 FILTER POLIKLINIK BERDASARKAN SEARCH
+// FILTER POLIKLINIK BERDASARKAN SEARCH
 // ==========================================
 const filteredPoliklinik = computed(() => {
   if (!searchQueryPoli.value) return listPoliklinik.value;
@@ -211,7 +212,12 @@ const startCamera = async () => {
       cameraActive.value = true;
     }
   } catch (err) {
-    alert("Izin kamera diperlukan untuk fitur pengenalan wajah!");
+    Swal.fire({
+      icon: 'warning',
+      title: 'Kamera Tidak Terdeteksi',
+      text: 'Izin kamera diperlukan untuk fitur pengenalan wajah!',
+      confirmButtonColor: '#059669'
+    });
   }
 };
 
@@ -258,7 +264,7 @@ const scanFrame = () => {
           
           clearInterval(autoDetectInterval);
           isAutoDetecting.value = false;
-          results.value = null; 
+          // Mempertahankan results.value agar bounding box wajah yang dikenal tetap tampil
         }
       }
 
@@ -278,12 +284,12 @@ const toggleScanning = () => {
     userData.value = null;
     selectedPoli.value = null;
     selectedDokter.value = null;
-    searchQueryPoli.value = ''; // Reset search
+    searchQueryPoli.value = ''; 
   } else {
     userData.value = null; 
     selectedPoli.value = null;
     selectedDokter.value = null;
-    searchQueryPoli.value = ''; // Reset search
+    searchQueryPoli.value = ''; 
     isAutoDetecting.value = true;
     
     scanFrame(); 
@@ -334,17 +340,55 @@ const pilihPoliklinik = async (poli) => {
 const finishRegistration = async () => {
   if (!selectedPoli.value || !selectedDokter.value) return;
 
+  const konfirmasi = await Swal.fire({
+    title: 'Konfirmasi Pendaftaran',
+    html: `Anda akan mendaftar ke poli <b>${selectedPoli.value.nama_poli}</b> dengan dokter <b>${selectedDokter.value.nama_dokter}</b>.<br><br>Lanjutkan?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#059669',
+    cancelButtonColor: '#ef4444', 
+    confirmButtonText: 'Ya, Daftar Sekarang!',
+    cancelButtonText: 'Batal'
+  });
+
+  if (!konfirmasi.isConfirmed) return;
+
+  Swal.fire({
+    title: 'Memproses Pendaftaran...',
+    text: 'Sedang menyimpan data ke server',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+
   try {
     const response = await axios.post('http://127.0.0.1:8000/api/daftar-antrian', {
       no_jppk: userData.value.no_jppk, 
-      
-      // 🚨 PERBAIKAN KRUSIAL: Mengirim jadwal_dokter_id sesuai permintaan FonnteController
       jadwal_dokter_id: selectedDokter.value.jadwal_dokter_id 
     });
 
     if (response.data.status === 'success') {
-      alert(`✅ PENDAFTARAN BERHASIL!\n\nNama: ${userData.value.nama}\nPoli: ${selectedPoli.value.nama_poli}\nDokter: ${selectedDokter.value.nama_dokter}\nNo Antrian: ${response.data.antrian}`);
+      Swal.fire({
+        icon: 'success',
+        title: 'PENDAFTARAN BERHASIL!',
+        html: `
+          <div class="text-left mt-4 text-sm text-slate-600 space-y-1">
+            <p><b>Nama Pasien:</b> ${userData.value.nama}</p>
+            <p><b>Poliklinik:</b> ${selectedPoli.value.nama_poli}</p>
+            <p><b>Nama Dokter:</b> ${selectedDokter.value.nama_dokter}</p>
+            
+            <div class="mt-5 bg-emerald-50 p-4 rounded-xl border border-emerald-200 text-center">
+              <p class="text-xs text-emerald-600 font-bold uppercase tracking-widest">No Antrian Anda</p>
+              <p class="text-4xl font-black text-emerald-800 mt-1">${response.data.antrian}</p>
+            </div>
+          </div>
+        `,
+        confirmButtonColor: '#059669',
+        confirmButtonText: 'Selesai'
+      });
       
+      // Reset State
       userData.value = null;
       selectedPoli.value = null;
       selectedDokter.value = null;
@@ -354,7 +398,12 @@ const finishRegistration = async () => {
     
   } catch (error) {
     console.error("Detail Error Pendaftaran:", error.response);
-    alert("❌ Gagal daftar: " + (error.response?.data?.message || "Server tidak merespon"));
+    Swal.fire({
+      icon: 'error',
+      title: 'Pendaftaran Gagal',
+      text: error.response?.data?.message || "Server tidak merespon. Silakan coba lagi.",
+      confirmButtonColor: '#ef4444'
+    });
   }
 };
 
@@ -379,7 +428,6 @@ onBeforeUnmount(() => {
 .animate-scan { animation: scan 2s infinite linear; }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 .animate-fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-/* Custom Scrollbar untuk Box Poli & Dokter supaya tidak bablas ke bawah */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
