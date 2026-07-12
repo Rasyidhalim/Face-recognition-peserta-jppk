@@ -1,51 +1,32 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Models;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
-class KioskController extends Controller
+class Antrian extends Model
 {
-    // 1. Mengambil semua daftar poliklinik dari database
-    // (VERSI UPDATE: Hanya memunculkan Poli yang sudah ada dokternya saja)
-    public function getPoliklinik()
-    {
-        $polis = DB::table('polis')
-                    ->join('dokters', 'polis.id', '=', 'dokters.poli_id')
-                    ->select('polis.id', 'polis.nama_poli', 'polis.kode_poli')
-                    ->distinct() // Mencegah nama poli muncul dobel
-                    ->orderBy('polis.nama_poli', 'ASC')
-                    ->get();
+    use HasFactory;
 
-        return response()->json($polis);
+    protected $table = 'antrians';
+
+    protected $fillable = [
+        'no_registrasi',
+        'no_jppk',
+        'jadwal_dokter_id',
+        'no_antrian',
+        'tanggal_daftar',
+        'status',
+    ];
+
+    public function peserta()
+    {
+        return $this->belongsTo(PesertaJppk::class, 'no_jppk', 'no_jppk');
     }
 
-    // 2. Mengambil jadwal dokter berdasarkan Poliklinik
-    // (VERSI UPDATE: Dokter yang belum ada jadwal tetap muncul dengan status abu-abu)
-    public function getDokterByPoli($poli_id)
+    public function jadwal_dokter()
     {
-        $dokters = DB::select("
-            SELECT 
-                d.id AS dokter_id,
-                j.id AS jadwal_dokter_id,
-                d.nama_dokter,
-                IFNULL(j.hari, '-') AS hari,
-                IFNULL(j.jam_mulai, '00:00:00') AS jam_mulai,
-                IFNULL(j.jam_selesai, '00:00:00') AS jam_selesai,
-                IFNULL(j.kuota_maksimal, 0) AS kuota_maksimal,
-                IFNULL(j.kuota_terisi, 0) AS kuota_terisi,
-                CASE 
-                    WHEN j.id IS NULL THEN 'BELUM ADA JADWAL'
-                    WHEN CURTIME() > j.jam_selesai THEN 'TUTUP (JAM LEWAT)'
-                    WHEN j.kuota_terisi >= j.kuota_maksimal THEN 'TUTUP (KUOTA HABIS)'
-                    ELSE 'BUKA'
-                END AS status_loket
-            FROM dokters d
-            LEFT JOIN jadwal_dokters j ON d.id = j.dokter_id
-            WHERE d.poli_id = :poli_id
-        ", ['poli_id' => $poli_id]);
-
-        return response()->json($dokters);
+        return $this->belongsTo(JadwalDokter::class, 'jadwal_dokter_id');
     }
 }

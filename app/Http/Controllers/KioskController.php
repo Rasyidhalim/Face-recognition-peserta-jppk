@@ -12,8 +12,12 @@ class KioskController extends Controller
     public function getPoliklinik()
     {
         $polis = DB::table('polis')
-                    ->select('id', 'nama_poli', 'kode_poli')
-                    ->orderBy('nama_poli', 'ASC')
+                    ->join('dokters', 'polis.id', '=', 'dokters.poli_id')
+                    ->join('jadwal_dokters', 'dokters.id', '=', 'jadwal_dokters.dokter_id')
+                    ->whereRaw("jadwal_dokters.hari = ELT(DAYOFWEEK(NOW()), 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu')")
+                    ->select('polis.id', 'polis.nama_poli', 'polis.kode_poli')
+                    ->distinct() // Mencegah nama poli muncul dobel
+                    ->orderBy('polis.nama_poli', 'ASC')
                     ->get();
 
         return response()->json($polis);

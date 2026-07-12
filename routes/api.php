@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\PesertaJppkController;
 use App\Http\Controllers\FonnteController;
-use App\Http\Controllers\DataPesertaController;
+
 use App\Http\Controllers\RiwayatController;
 use App\Http\Controllers\PoliController;
 use App\Http\Controllers\KioskController;
@@ -50,11 +50,11 @@ Route::post('/recognize', [PesertaJppkController::class, 'recognize']);
 
 Route::post('/daftar-antrian', [FonnteController::class, 'daftarAntrian']);
 
-Route::get('/data-peserta', [DataPesertaController::class, 'index']);
-
 Route::post('/fonnte/panggil-poli', [FonnteController::class, 'panggilPoli']);
 
 Route::get('/data-antrian-poli', [PoliController::class, 'getAntrianPoli']);
 
 Route::post('/panggil-poli', [FonnteController::class, 'panggilPoli']);
-
+
+Route::get('/admin/units', function() { return DB::table('units')->get(); });
+Route::get('/admin/plans', function() { return DB::table('plans')->get(); });

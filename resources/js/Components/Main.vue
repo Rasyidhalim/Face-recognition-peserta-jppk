@@ -113,7 +113,7 @@
           </div>
 
           <div v-if="filteredPoliklinik.length === 0" class="text-center py-4 bg-slate-50 rounded-xl border border-slate-100">
-            <p class="text-xs font-bold text-slate-400">Poliklinik tidak ditemukan.</p>
+            <p class="text-xs font-bold text-slate-400">Maaf, Poliklinik tidak tersedia hari ini.</p>
           </div>
 
           <div class="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-1 pb-1">
