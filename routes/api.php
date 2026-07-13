@@ -9,6 +9,7 @@ use App\Http\Controllers\FonnteController;
 
 use App\Http\Controllers\RiwayatController;
 use App\Http\Controllers\PoliController;
+use App\Http\Controllers\DokterController;
 use App\Http\Controllers\KioskController;
 use App\Http\Controllers\AdminPesertaController;
 use App\Http\Controllers\AdminLaporanController;
@@ -28,9 +29,9 @@ Route::post('/admin/peserta/registrasi-muka/{no_jppk}', [AdminPesertaController:
 
 Route::delete('/admin/peserta/{no_jppk}', [AdminPesertaController::class, 'destroy']);
 
-Route::get('/antrian-dokter', [FonnteController::class, 'getAntrianDokter']);
+Route::get('/antrian-dokter', [DokterController::class, 'getAntrianDokter']);
 
-Route::post('/selesai-periksa', [FonnteController::class, 'selesaiMedis']);
+Route::post('/selesai-periksa', [DokterController::class, 'selesaiMedis']);
 
 // Route untuk kebutuhan Kiosk Mandiri (Poli & Dokter)
 Route::get('/kiosk/poliklinik', [KioskController::class, 'getPoliklinik']);
@@ -50,11 +51,11 @@ Route::post('/recognize', [PesertaJppkController::class, 'recognize']);
 
 Route::post('/daftar-antrian', [FonnteController::class, 'daftarAntrian']);
 
-Route::post('/fonnte/panggil-poli', [FonnteController::class, 'panggilPoli']);
+Route::post('/fonnte/panggil-poli', [PoliController::class, 'panggilPoli']);
 
 Route::get('/data-antrian-poli', [PoliController::class, 'getAntrianPoli']);
 
-Route::post('/panggil-poli', [FonnteController::class, 'panggilPoli']);
+Route::post('/panggil-poli', [PoliController::class, 'panggilPoli']);
 
 Route::get('/admin/units', function() { return DB::table('units')->get(); });
 Route::get('/admin/plans', function() { return DB::table('plans')->get(); });
