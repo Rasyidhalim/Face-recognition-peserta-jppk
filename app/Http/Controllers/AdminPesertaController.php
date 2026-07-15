@@ -182,6 +182,11 @@ class AdminPesertaController extends Controller
                 'video', file_get_contents($absolutePath), $namaFile
             )->post("http://localhost:8001/extract-dna/{$no_jppk}");
 
+            // Hapus file video .webm dari folder karena tidak diperlukan lagi (agar folder tidak penuh)
+            if (file_exists($absolutePath)) {
+                unlink($absolutePath);
+            }
+
             // 5. Evaluasi Balasan Python & Simpan Embedding Sebenarnya
             if ($responsePython->successful()) {
                 $dataPython = $responsePython->json();

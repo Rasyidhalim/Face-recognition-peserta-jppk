@@ -112,7 +112,7 @@ def load_all_data_to_ram():
                     frames.sort() 
                     first_frame_path = os.path.join(item_path, frames[0])
                     try:
-                        ref_data = DeepFace.represent(img_path=first_frame_path, model_name="Facenet", enforce_detection=False)
+                        ref_data = DeepFace.represent(img_path=first_frame_path, model_name="Facenet", enforce_detection=True)
                         if ref_data:
                             known_embeddings[no_jppk] = ref_data[0]["embedding"]
                             extracted_count += 1
@@ -153,43 +153,56 @@ async def recognize_face(image: UploadFile = File(...)):
         detections = []
         results = model(frame, classes=[0], conf=0.7, verbose=False)
 
+        # Cari kotak paling besar (orang yang paling dekat dengan kamera)
+        largest_box = None
+        max_area = 0
+        
         for r in results:
             for box in r.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                
+                area = (x2 - x1) * (y2 - y1)
+                if area > max_area:
+                    max_area = area
+                    largest_box = box
+
+        if largest_box is not None:
+            x1, y1, x2, y2 = map(int, largest_box.xyxy[0])
+            
+            # FILTER: Tetap abaikan jika orang terbesar pun terlalu kecil/jauh (lebar < 150px)
+            if (x2 - x1) >= 150 and (y2 - y1) >= 150:
                 h, w, _ = frame.shape
                 crop_y1, crop_y2 = max(0, y1-30), min(h, y2+30)
                 crop_x1, crop_x2 = max(0, x1-30), min(w, x2+30)
 
                 crop_img = frame[crop_y1:crop_y2, crop_x1:crop_x2]
-                if crop_img.size == 0: continue
+                
+                if crop_img.size > 0:
+                    label = "TIDAK DIKENAL"
+                    best_score = 0.0
+                    info_db = None 
 
-                label = "TIDAK DIKENAL"
-                best_score = 0.0
-                info_db = None 
-
-                try:
-                    realtime_data = DeepFace.represent(img_path=crop_img, model_name="Facenet", enforce_detection=False)
-                    if realtime_data:
-                        realtime_embedding = realtime_data[0]["embedding"]
-                        
-                        for known_jppk, ref_emb in known_embeddings.items():
-                            score = cosine_similarity(ref_emb, realtime_embedding)
+                    try:
+                        realtime_data = DeepFace.represent(img_path=crop_img, model_name="Facenet", enforce_detection=False)
+                        if realtime_data:
+                            realtime_embedding = realtime_data[0]["embedding"]
                             
-                            if score > best_score:
-                                best_score = score
-                                if score > 0.65: 
-                                    label = known_jppk 
-                                    info_db = karyawan_info.get(label, None)
-                except Exception:
-                    pass 
+                            for known_jppk, ref_emb in known_embeddings.items():
+                                score = cosine_similarity(ref_emb, realtime_embedding)
+                                
+                                if score > best_score:
+                                    best_score = score
+                                    if score > 0.70: 
+                                        label = known_jppk 
+                                        info_db = karyawan_info.get(label, None)
+                    except Exception as e:
+                        print(f"DEBUG: DeepFace error for test image: {e}") 
 
-                detections.append({
-                    "label": label, 
-                    "confidence": float(best_score) if label != "TIDAK DIKENAL" else 0.0,
-                    "box": [x1, y1, x2, y2],
-                    "info_pindad": info_db 
-                })
+                    detections.append({
+                        "label": label, 
+                        "confidence": float(best_score),
+                        "box": [x1, y1, x2, y2],
+                        "info_pindad": info_db 
+                    })
 
         return {"status": "success", "data": detections}
     except Exception as e:
@@ -211,10 +224,14 @@ async def extract_faces_from_video(no_jppk: str, video: UploadFile = File(...)):
         saved_count = 0
         embeddings_list = [] 
         
-        while cap.isOpened():
+        while saved_count < 200:
             ret, frame = cap.read()
             if not ret:
-                break 
+                # REWIND video jika sudah di ujung tapi belum dapat 200 frame
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ret, frame = cap.read()
+                if not ret:
+                    break # Video benar-benar tidak bisa dibaca 
                 
             results = model(frame, classes=[0], conf=0.6, verbose=False)
             face_saved_in_this_frame = False
@@ -235,11 +252,12 @@ async def extract_faces_from_video(no_jppk: str, video: UploadFile = File(...)):
                         img_path = os.path.join(user_dir, f"frame_{saved_count + 1:03d}.jpg")
                         cv2.imwrite(img_path, crop_img)
                         saved_count += 1
+                            
                         face_saved_in_this_frame = True
                         
                         if len(embeddings_list) < 30:
                             try:
-                                ref_data = DeepFace.represent(img_path=crop_img, model_name="Facenet", enforce_detection=False)
+                                ref_data = DeepFace.represent(img_path=crop_img, model_name="Facenet", enforce_detection=True)
                                 if ref_data:
                                     embeddings_list.append(ref_data[0]["embedding"])
                             except Exception:
@@ -248,7 +266,7 @@ async def extract_faces_from_video(no_jppk: str, video: UploadFile = File(...)):
                         break 
                         
                 if face_saved_in_this_frame:
-                    break
+                    pass
                     
             if saved_count >= 200:
                 break
@@ -267,7 +285,7 @@ async def extract_faces_from_video(no_jppk: str, video: UploadFile = File(...)):
         
         return {
             "status": "success",
-            "message": f"Berhasil mengekstrak {saved_count} frame gambar dan mengunci koordinat biometrik.",
+            "message": f"Berhasil menganalisis {saved_count} frame gambar dan mengunci koordinat biometrik.",
             "folder_path": f"dataset_wajah/{no_jppk}",
             "face_image_path": f"dataset_wajah/{no_jppk}/frame_001.jpg",
             "total_frames": saved_count,

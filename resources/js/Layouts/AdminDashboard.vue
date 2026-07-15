@@ -577,7 +577,13 @@ const aktifkanKamera = async () => {
     isVideoReady.value = false
     
     await nextTick()
-    kameraStream.value = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+    kameraStream.value = await navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        width: 640, 
+        height: 480,
+        frameRate: { ideal: 30 }
+      } 
+    })
     if (videoRef.value) videoRef.value.srcObject = kameraStream.value
     
     mediaRecorder = new MediaRecorder(kameraStream.value, { mimeType: 'video/webm' })
@@ -600,21 +606,21 @@ const aktifkanKamera = async () => {
   }
 }
 
-// 🔥 FUNGSI REKAM (Diperpanjang jadi 8 Detik untuk mengejar 200 Frame) 🔥
+// 🔥 FUNGSI REKAM (Diperpanjang jadi 15 Detik agar PASTI tembus 200 Frame) 🔥
 const rekamVideoSuperDNA = () => {
   if (!mediaRecorder) return
   
   recordedChunks = []
   isRecording.value = true
   isVideoReady.value = false
-  countdown.value = 8
+  countdown.value = 15
   
   mediaRecorder.start()
 
   teksPemandu.value = '🟢 Posisikan Wajah Tegak'
-  setTimeout(() => { teksPemandu.value = '👉 Nengok KANAN Perlahan' }, 2000)
-  setTimeout(() => { teksPemandu.value = '👇 Nunduk BAWAH Perlahan' }, 4000)
-  setTimeout(() => { teksPemandu.value = '👈 Nengok KIRI Perlahan' }, 6000)
+  setTimeout(() => { teksPemandu.value = '👉 Nengok KANAN Perlahan' }, 3000)
+  setTimeout(() => { teksPemandu.value = '👇 Nunduk BAWAH Perlahan' }, 7000)
+  setTimeout(() => { teksPemandu.value = '👈 Nengok KIRI Perlahan' }, 11000)
 
   const timerInterval = setInterval(() => {
     if(countdown.value > 0) countdown.value--
@@ -627,7 +633,7 @@ const rekamVideoSuperDNA = () => {
       clearInterval(timerInterval)
       matikanKamera() 
     }
-  }, 8000) 
+  }, 15000) 
 }
 
 const handleUploadFoto = (e) => {
@@ -717,7 +723,7 @@ const simpanRegistrasiMuka = async () => {
 
 /* 🔥 Animasi Cincin CSS Murni (Berjalan tepat 8 detik) 🔥 */
 .animate-face-id-fill {
-  animation: faceIdFill 8s linear forwards;
+  animation: faceIdFill 15s linear forwards;
 }
 @keyframes faceIdFill {
   0% { stroke-dashoffset: 302; }

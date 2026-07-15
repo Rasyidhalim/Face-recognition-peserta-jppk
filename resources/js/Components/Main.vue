@@ -34,7 +34,7 @@
             zIndex: 25
           }"
         >
-          <span :style="{
+          <div :style="{
             background: box.label === 'TIDAK DIKENAL' ? '#FF3333' : '#34D399', 
             color: box.label === 'TIDAK DIKENAL' ? 'white' : '#064E3B', 
             fontSize: '12px', 
@@ -44,10 +44,13 @@
             top: '0px', 
             left: '0px', 
             whiteSpace: 'nowrap',
-            borderRadius: '0 0 8px 0'
+            borderRadius: '0 0 8px 0',
+            display: 'flex',
+            flexDirection: 'column'
           }">
-            {{ box.label === 'TIDAK DIKENAL' ? 'TIDAK DIKENAL' : 'DIKENALI' }}
-          </span>
+            <span>{{ box.label === 'TIDAK DIKENAL' ? 'TIDAK DIKENAL' : 'DIKENALI' }}</span>
+            <span style="font-size: 9px; font-weight: normal; margin-top: 2px;">Acc: {{ box.confidence ? (box.confidence * 100).toFixed(1) : 0 }}% | Thr: 70%</span>
+          </div>
         </div>
         
         <div v-if="!cameraActive" class="absolute inset-0 bg-emerald-900/80 flex flex-col items-center justify-center text-emerald-500 z-10">
@@ -304,6 +307,7 @@ const drawnBoxes = computed(() => {
     const [x1, y1, x2, y2] = item.box;
     return {
       label: item.label,
+      confidence: item.confidence,
       x: x1 * scale.value.x,
       y: y1 * scale.value.y,
       width: (x2 - x1) * scale.value.x,
