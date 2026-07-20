@@ -57,10 +57,8 @@ def run_evaluation():
 
     print("Memulai Pengujian Akurasi...\n")
     
-    TP = 0  # True Positive (Benar dikenali)
-    FN = 0  # False Negative (Gagal dikenali)
-    TN = 0  # True Negative (Asing ditolak dengan benar)
-    FP = 0  # False Positive (Asing malah dikenali - BERBAHAYA)
+    y_true = []
+    y_pred = []
     failed_detections = 0
     
     print("=== MENGUJI DATA TERDAFTAR (Ekspektasi: Dikenali sebagai No JPPK) ===")
@@ -75,14 +73,15 @@ def run_evaluation():
             print(f"[!] {expected_label}/{filename} -> Wajah tidak tertangkap AI (Blur/Terlalu jauh/Gelap)")
             continue
             
+        y_true.append(expected_label)
+        # Sesuai dengan format dari sklearn, pastikan jika AI bilang "TIDAK DIKENAL" ia ditulis sama dengan label asing
+        y_pred.append(detected_label if detected_label != "TIDAK DIKENAL" else "Tidak dikenal")
+        
         if detected_label == expected_label:
-            TP += 1
             print(f"[BENAR] {expected_label}/{filename} -> Dikenali sebagai {detected_label} (Score: {score:.2f})")
         elif detected_label == "TIDAK DIKENAL":
-            FN += 1
             print(f"[SALAH - FN] {expected_label}/{filename} -> Gagal Dikenali / Jawabannya TIDAK DIKENAL (Score: {score:.2f})")
         else:
-            FN += 1 
             print(f"[SALAH - MISMATCH] {expected_label}/{filename} -> Dikenali salah sebagai {detected_label} (Score: {score:.2f})")
 
     print("\n=== MENGUJI DATA TIDAK TERDAFTAR / ASING (Ekspektasi: TIDAK DIKENAL) ===")
@@ -95,49 +94,41 @@ def run_evaluation():
             print(f"[!] {filename} -> Wajah tidak tertangkap AI")
             continue
             
+        y_true.append("Tidak dikenal")
+        y_pred.append(detected_label if detected_label != "TIDAK DIKENAL" else "Tidak dikenal")
+        
         if detected_label == "TIDAK DIKENAL":
-            TN += 1
             print(f"[BENAR] {filename} -> Ditolak dengan benar sebagai TIDAK DIKENAL")
         else:
-            FP += 1
             print(f"[SALAH - FP] {filename} -> BERBAHAYA! Orang asing malah dikenali sebagai {detected_label}! (Score: {score:.2f})")
 
-    # Kalkulasi Metrik Akhir
-    total_valid_tests = TP + TN + FP + FN
-    
-    if total_valid_tests == 0:
+    # Kalkulasi Metrik Akhir dengan scikit-learn
+    if len(y_true) == 0:
         print("\n[!] Tidak ada gambar yang berhasil dievaluasi (semua gambar gagal dideteksi wajahnya).")
         return
         
-    accuracy = (TP + TN) / total_valid_tests
-    precision = TP / (TP + FP) if (TP + FP) > 0 else 0
-    recall = TP / (TP + FN) if (TP + FN) > 0 else 0
-    
     print("\n" + "="*50)
     print("HASIL EVALUASI AKURASI FACE RECOGNITION (JPPK RS PINDAD)")
     print("="*50)
-    print(f"Total Foto Diuji       : {total_valid_tests + failed_detections}")
-    print(f"Gagal Deteksi (Blur/No Face) : {failed_detections}")
-    print(f"Total Foto Dievaluasi  : {total_valid_tests}\n")
     
-    print(f"True Positive (TP)     : {TP} (Wajah terdaftar yang BENAR dikenali)")
-    print(f"True Negative (TN)     : {TN} (Orang asing yang BENAR ditolak)")
-    print(f"False Positive (FP)    : {FP} (Orang asing yang SALAH dikenali - CELAH KEAMANAN)")
-    print(f"False Negative (FN)    : {FN} (Wajah terdaftar yang GAGAL dikenali - SUSAH MASUK)\n")
-    
-    print(f"AKURASI TOTAL          : {accuracy * 100:.2f}%")
-    print(f"PRESISI (Precision)    : {precision * 100:.2f}%")
-    print(f"RECALL                 : {recall * 100:.2f}%")
+    try:
+        from sklearn.metrics import classification_report, confusion_matrix
+        print("\nClassification Report:")
+        print(classification_report(y_true, y_pred, zero_division=0))
+        
+        print("\nConfusion Matrix:")
+        print(confusion_matrix(y_true, y_pred))
+        
+    except ImportError:
+        print("\n[!] Modul scikit-learn tidak ditemukan. Untuk menampilkan format tabel Classification Report seperti skripsi, harap jalankan:")
+        print("    pip install scikit-learn")
+        print("\nData hasil:")
+        print("Target Asli   :", y_true)
+        print("Hasil Prediksi:", y_pred)
+        
+    print("\n" + "="*50)
+    print(f"Total Foto Diabaikan (Gagal Deteksi/Blur) : {failed_detections}")
     print("="*50)
-    
-    if FP > 0:
-        print("KESIMPULAN: Ada orang asing yang berhasil masuk! Sistem Anda terlalu 'longgar'.")
-        print("SARAN: Naikkan threshold di api.py baris 181 (misal dari 0.70 menjadi 0.75 atau 0.80).")
-    elif FN > 0:
-        print("KESIMPULAN: Sistem cukup aman, tapi ada peserta asli yang susah masuk (gagal dikenali).")
-        print("SARAN: Jika pencahayaan saat test sudah bagus tapi tetap gagal, Anda bisa coba turunkan threshold di api.py (misal ke 0.65).")
-    else:
-        print("KESIMPULAN: Sistem SANGAT SEMPURNA! Tidak ada salah kenal dan tidak ada yang gagal ditolak.")
 
 if __name__ == "__main__":
     setup_folders()
