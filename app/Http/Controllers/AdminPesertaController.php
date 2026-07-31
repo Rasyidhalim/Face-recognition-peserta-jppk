@@ -148,7 +148,7 @@ class AdminPesertaController extends Controller
     {
         try {
             // 🔥 PERBAIKAN 1: Tambahkan ini agar PHP Laravel tidak mati di tengah jalan
-            ini_set('max_execution_time', 120); 
+            ini_set('max_execution_time', 600); 
 
             // 1. Cek Data Pasien
             $peserta = DB::table('peserta_jppk')->where('no_jppk', $no_jppk)->first();
@@ -177,8 +177,8 @@ class AdminPesertaController extends Controller
             $videoFile->move($folderTujuan, $namaFile);
 
             // 4. Kirim berkas video mentah dari Laravel ke FastAPI Python (Port 8001)
-            // 🔥 PERBAIKAN 2: Tambahkan timeout(120) agar Laravel sabar menunggu AI bekerja
-            $responsePython = Http::timeout(120)->attach(
+            // 🔥 PERBAIKAN 2: Tambahkan timeout(600) agar Laravel sabar menunggu AI bekerja
+            $responsePython = Http::timeout(600)->attach(
                 'video', file_get_contents($absolutePath), $namaFile
             )->post("http://localhost:8001/extract-dna/{$no_jppk}");
 
@@ -232,10 +232,12 @@ class AdminPesertaController extends Controller
                     return response()->json(['status' => 'error', 'message' => $pesanError], 400);
                 }
             } else {
+                $dataPython = $responsePython->json();
+                $pesanError = $dataPython['detail'] ?? $dataPython['message'] ?? 'Server Python gagal merespon dengan benar (HTTP ' . $responsePython->status() . ').';
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Server Python gagal merespon dengan benar (HTTP ' . $responsePython->status() . ').'
-                ], 500);
+                    'message' => $pesanError
+                ], 400);
             }
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => 'Fatal Error System: ' . $e->getMessage()], 500);

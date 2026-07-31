@@ -5,10 +5,53 @@ import mysql.connector
 import uuid
 import logging
 import json
+import math
+import time
+
+liveness_status = {}
+
+def calculate_distance(p1, p2):
+    return math.hypot(p2[0] - p1[0], p2[1] - p1[1])
+
+def eye_aspect_ratio(eye_landmarks, img_w, img_h):
+    v1 = calculate_distance(eye_landmarks[1], eye_landmarks[5])
+    v2 = calculate_distance(eye_landmarks[2], eye_landmarks[4])
+    h = calculate_distance(eye_landmarks[0], eye_landmarks[3])
+    ear = (v1 + v2) / (2.0 * h) if h > 0 else 0
+    return ear
+
+def is_blinking(face_landmarks, img_w, img_h):
+    LEFT_EYE_INDICES = [33, 160, 158, 133, 153, 144]
+    RIGHT_EYE_INDICES = [362, 385, 387, 263, 373, 380]
+    
+    left_eye = [(face_landmarks[i].x * img_w, face_landmarks[i].y * img_h) for i in LEFT_EYE_INDICES]
+    right_eye = [(face_landmarks[i].x * img_w, face_landmarks[i].y * img_h) for i in RIGHT_EYE_INDICES]
+    
+    left_ear = eye_aspect_ratio(left_eye, img_w, img_h)
+    right_ear = eye_aspect_ratio(right_eye, img_w, img_h)
+    average_ear = (left_ear + right_ear) / 2.0
+    print(f"DEBUG: EAR terdeteksi: {average_ear:.3f}")
+    return average_ear < 0.25
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
 from deepface import DeepFace
+import urllib.request
+import mediapipe as mp
+from mediapipe.tasks import python as mp_python
+from mediapipe.tasks.python import vision as mp_vision
+
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'face_landmarker.task')
+if not os.path.exists(MODEL_PATH):
+    urllib.request.urlretrieve("https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task", MODEL_PATH)
+
+base_options = mp_python.BaseOptions(model_asset_path=MODEL_PATH)
+options = mp_vision.FaceLandmarkerOptions(
+    base_options=base_options,
+    output_face_blendshapes=False,
+    output_facial_transformation_matrixes=False,
+    num_faces=1)
+face_landmarker = mp_vision.FaceLandmarker.create_from_options(options)
 
 # Matikan log TensorFlow agar terminal bersih
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -182,26 +225,64 @@ async def recognize_face(image: UploadFile = File(...)):
                     info_db = None 
 
                     try:
-                        realtime_data = DeepFace.represent(img_path=crop_img, model_name="Facenet", enforce_detection=False)
+                        # WAJIB: enforce_detection=True agar tidak menebak random dari gambar baju/badan
+                        realtime_data = DeepFace.represent(img_path=crop_img, model_name="Facenet", enforce_detection=True)
                         if realtime_data:
                             realtime_embedding = realtime_data[0]["embedding"]
+                            
+                            # Ambil koordinat wajah yang BENAR-BENAR wajah (di dalam kotak badan)
+                            facial_area = realtime_data[0].get("facial_area")
+                            if facial_area:
+                                # Ubah x1, y1, x2, y2 menjadi kotak WAJAH, bukan kotak badan
+                                face_x = facial_area.get("x", 0)
+                                face_y = facial_area.get("y", 0)
+                                face_w = facial_area.get("w", 0)
+                                face_h = facial_area.get("h", 0)
+                                
+                                # Tambahkan padding agar kotak melingkupi seluruh kepala
+                                pad_x = int(face_w * 0.2)
+                                pad_y = int(face_h * 0.25)
+                                
+                                x1 = max(0, crop_x1 + face_x - pad_x)
+                                y1 = max(0, crop_y1 + face_y - pad_y)
+                                x2 = min(w, crop_x1 + face_x + face_w + pad_x)
+                                y2 = min(h, crop_y1 + face_y + face_h + pad_y)
                             
                             for known_jppk, ref_emb in known_embeddings.items():
                                 score = cosine_similarity(ref_emb, realtime_embedding)
                                 
                                 if score > best_score:
                                     best_score = score
-                                    if score > 0.70: 
+                                    # Naikkan threshold menjadi 0.75 agar lebih ketat dan tidak mudah salah orang
+                                    if score > 0.75: 
                                         label = known_jppk 
                                         info_db = karyawan_info.get(label, None)
+                    except ValueError:
+                        # Abaikan secara diam-diam jika wajah tidak ditemukan (misal orang membelakangi kamera)
+                        pass
                     except Exception as e:
                         print(f"DEBUG: DeepFace error for test image: {e}") 
+
+                    is_lively = False
+                    if label != "TIDAK DIKENAL":
+                        rgb_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB)
+                        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_img)
+                        mp_results = face_landmarker.detect(mp_image)
+                        
+                        if mp_results.face_landmarks:
+                            if is_blinking(mp_results.face_landmarks[0], crop_img.shape[1], crop_img.shape[0]):
+                                liveness_status[label] = time.time()
+                                
+                        if label in liveness_status:
+                            if time.time() - liveness_status[label] < 15:
+                                is_lively = True
 
                     detections.append({
                         "label": label, 
                         "confidence": float(best_score),
-                        "box": [x1, y1, x2, y2],
-                        "info_pindad": info_db 
+                        "box": [x1, y1, x2, y2], # Sekarang ini adalah kotak WAJAH
+                        "info_pindad": info_db,
+                        "is_lively": is_lively
                     })
 
         return {"status": "success", "data": detections}
@@ -221,17 +302,20 @@ async def extract_faces_from_video(no_jppk: str, video: UploadFile = File(...)):
         
     try:
         cap = cv2.VideoCapture(temp_video_path)
+        quotas = {"lurus": 40, "kiri": 40, "kanan": 40, "atas": 40, "bawah": 40}
+        counts = {"lurus": 0, "kiri": 0, "kanan": 0, "atas": 0, "bawah": 0}
         saved_count = 0
+        loop_counter = 0
         embeddings_list = [] 
+        frame_idx = 0
         
-        while saved_count < 200:
+        while saved_count < 200 and loop_counter < 3:
             ret, frame = cap.read()
             if not ret:
-                # REWIND video jika sudah di ujung tapi belum dapat 200 frame
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                loop_counter += 1
                 ret, frame = cap.read()
-                if not ret:
-                    break # Video benar-benar tidak bisa dibaca 
+                if not ret: break 
                 
             results = model(frame, classes=[0], conf=0.6, verbose=False)
             face_saved_in_this_frame = False
@@ -241,40 +325,66 @@ async def extract_faces_from_video(no_jppk: str, video: UploadFile = File(...)):
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     h, w, _ = frame.shape
                     
-                    crop_y1 = max(0, y1 - 30)
-                    crop_y2 = min(h, y2 + 30)
-                    crop_x1 = max(0, x1 - 30)
-                    crop_x2 = min(w, x2 + 30)
-
+                    crop_y1, crop_y2 = max(0, y1 - 30), min(h, y2 + 30)
+                    crop_x1, crop_x2 = max(0, x1 - 30), min(w, x2 + 30)
                     crop_img = frame[crop_y1:crop_y2, crop_x1:crop_x2]
                     
                     if crop_img.size > 0:
-                        img_path = os.path.join(user_dir, f"frame_{saved_count + 1:03d}.jpg")
-                        cv2.imwrite(img_path, crop_img)
-                        saved_count += 1
-                            
-                        face_saved_in_this_frame = True
+                        rgb_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB)
+                        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_img)
+                        mp_results = face_landmarker.detect(mp_image)
                         
-                        if len(embeddings_list) < 30:
-                            try:
-                                ref_data = DeepFace.represent(img_path=crop_img, model_name="Facenet", enforce_detection=True)
-                                if ref_data:
-                                    embeddings_list.append(ref_data[0]["embedding"])
-                            except Exception:
-                                pass
+                        if mp_results.face_landmarks:
+                            face_landmarks = mp_results.face_landmarks[0]
+                            img_h, img_w, _ = crop_img.shape
+                            face_3d, face_2d = [], []
+                            for idx in [33, 263, 1, 61, 291, 199]:
+                                lm = face_landmarks[idx]
+                                x, y = int(lm.x * img_w), int(lm.y * img_h)
+                                face_2d.append([x, y])
+                                face_3d.append([x, y, lm.z])
                                 
+                            face_2d = np.array(face_2d, dtype=np.float64)
+                            face_3d = np.array(face_3d, dtype=np.float64)
+                            cam_matrix = np.array([[img_w, 0, img_h / 2], [0, img_w, img_w / 2], [0, 0, 1]])
+                            dist_matrix = np.zeros((4, 1), dtype=np.float64)
+                            _, rot_vec, _ = cv2.solvePnP(face_3d, face_2d, cam_matrix, dist_matrix)
+                            rmat, _ = cv2.Rodrigues(rot_vec)
+                            angles, _, _, _, _, _ = cv2.RQDecomp3x3(rmat)
+                            
+                            pitch, yaw = angles[0] * 360, angles[1] * 360
+                            
+                            arah = "lurus"
+                            if yaw < -10: arah = "kiri"
+                            elif yaw > 10: arah = "kanan"
+                            elif pitch < -10: arah = "bawah"
+                            elif pitch > 10: arah = "atas"
+                            
+                            # BEBAS KUOTA: Langsung simpan frame apapun pose-nya
+                            img_path = os.path.join(user_dir, f"frame_{saved_count + 1:03d}.jpg")
+                            cv2.imwrite(img_path, crop_img)
+                            counts[arah] += 1
+                            saved_count += 1
+                            face_saved_in_this_frame = True
+                            
+                            if len(embeddings_list) < 30:
+                                try:
+                                    ref_data = DeepFace.represent(img_path=crop_img, model_name="Facenet", enforce_detection=True)
+                                    if ref_data: embeddings_list.append(ref_data[0]["embedding"])
+                                except: pass
                         break 
-                        
                 if face_saved_in_this_frame:
-                    pass
+                    break
                     
             if saved_count >= 200:
                 break
                 
         cap.release()
         
-        if saved_count == 0 or len(embeddings_list) == 0:
-            raise HTTPException(status_code=400, detail="Wajah tidak terdeteksi oleh AI. Mohon posisikan wajah tepat di depan kamera dengan pencahayaan terang.")
+        # WAJIB 200 GAMBAR: Berapa pun pembagian arahnya, total keseluruhan WAJIB 200
+        if saved_count < 200:
+            msg = f"Gagal. Wajah terlalu sering keluar layar. Hanya terkumpul {saved_count} dari syarat mutlak 200 gambar. Lurus:{counts['lurus']}, Kiri:{counts['kiri']}, Kanan:{counts['kanan']}, Atas:{counts['atas']}, Bawah:{counts['bawah']}."
+            raise HTTPException(status_code=400, detail=msg)
             
         super_dna = np.mean(embeddings_list, axis=0)
         super_dna = np.nan_to_num(super_dna, nan=0.0, posinf=1.0, neginf=-1.0)

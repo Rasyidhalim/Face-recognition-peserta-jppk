@@ -19,37 +19,37 @@
         
         <canvas ref="canvasElement" class="hidden"></canvas>
 
-        <div
-          v-for="(box, index) in drawnBoxes"
-          :key="index"
+        <div v-for="(box, index) in results?.data" :key="index"
           :style="{
             position: 'absolute',
-            border: `3px solid ${box.label === 'TIDAK DIKENAL' ? '#FF3333' : '#34D399'}`,
-            left: box.x + 'px',
-            top: box.y + 'px',
-            width: box.width + 'px',
-            height: box.height + 'px',
+            border: box.label === 'TIDAK DIKENAL' ? '4px solid #ef4444' : (!box.is_lively ? '4px solid #f97316' : '4px solid #10b981'),
+            left: `${box.box[0] * scale.x}px`,
+            top: `${box.box[1] * scale.y}px`,
+            width: `${(box.box[2] - box.box[0]) * scale.x}px`,
+            height: `${(box.box[3] - box.box[1]) * scale.y}px`,
+            boxShadow: box.label === 'TIDAK DIKENAL' ? '0 0 20px rgba(239, 68, 68, 0.4)' : (!box.is_lively ? '0 0 20px rgba(249, 115, 22, 0.4)' : '0 0 20px rgba(16, 185, 129, 0.4)'),
+            borderRadius: '12px',
+            transition: 'all 0.2s',
             pointerEvents: 'none',
-            transition: 'all 0.15s ease-out',
             zIndex: 25
-          }"
-        >
+          }">
+          
           <div :style="{
-            background: box.label === 'TIDAK DIKENAL' ? '#FF3333' : '#34D399', 
-            color: box.label === 'TIDAK DIKENAL' ? 'white' : '#064E3B', 
-            fontSize: '12px', 
+            backgroundColor: box.label === 'TIDAK DIKENAL' ? '#ef4444' : (!box.is_lively ? '#f97316' : '#10b981'),
+            color: 'white',
+            fontSize: '14px', 
             fontWeight: 'bold', 
             padding: '4px 8px', 
             position: 'absolute', 
             top: '0px', 
             left: '0px', 
             whiteSpace: 'nowrap',
-            borderRadius: '0 0 8px 0',
+            borderRadius: '0 0 12px 0',
             display: 'flex',
             flexDirection: 'column'
           }">
-            <span>{{ box.label === 'TIDAK DIKENAL' ? 'TIDAK DIKENAL' : 'DIKENALI' }}</span>
-            <span style="font-size: 9px; font-weight: normal; margin-top: 2px;">Acc: {{ box.confidence ? (box.confidence * 100).toFixed(1) : 0 }}% | Thr: 70%</span>
+            <span>{{ box.label === 'TIDAK DIKENAL' ? 'TIDAK DIKENAL' : (!box.is_lively ? 'TUTUP MATA SEBENTAR!' : 'DIKENALI') }}</span>
+            <span style="font-size: 11px; font-weight: normal; margin-top: 2px;">Acc: {{ box.confidence ? (box.confidence * 100).toFixed(1) : 0 }}% | Thr: 75%</span>
           </div>
         </div>
         
@@ -259,15 +259,17 @@ const scanFrame = () => {
         const dikenali = response.data.data.find(wajah => wajah.label !== 'TIDAK DIKENAL');
         
         if (dikenali && dikenali.info_pindad) {
-          userData.value = {
-            nama: dikenali.info_pindad.nama_peserta, 
-            no_jppk: dikenali.label, 
-            unit: dikenali.info_pindad.nama_unit
-          };
-          
-          clearInterval(autoDetectInterval);
-          isAutoDetecting.value = false;
-          // Mempertahankan results.value agar bounding box wajah yang dikenal tetap tampil
+          if (dikenali.is_lively) {
+            userData.value = {
+              nama: dikenali.info_pindad.nama_peserta, 
+              no_jppk: dikenali.label, 
+              unit: dikenali.info_pindad.nama_unit
+            };
+            
+            clearInterval(autoDetectInterval);
+            isAutoDetecting.value = false;
+            // Mempertahankan results.value agar bounding box wajah yang dikenal tetap tampil
+          }
         }
       }
 
@@ -296,7 +298,7 @@ const toggleScanning = () => {
     isAutoDetecting.value = true;
     
     scanFrame(); 
-    autoDetectInterval = setInterval(scanFrame, 1500); 
+    autoDetectInterval = setInterval(scanFrame, 800); 
   }
 };
 
@@ -305,6 +307,7 @@ const drawnBoxes = computed(() => {
   calculateScale(); 
   return results.value.data.map(item => {
     const [x1, y1, x2, y2] = item.box;
+    
     return {
       label: item.label,
       confidence: item.confidence,

@@ -606,21 +606,22 @@ const aktifkanKamera = async () => {
   }
 }
 
-// 🔥 FUNGSI REKAM (Diperpanjang jadi 15 Detik agar PASTI tembus 200 Frame) 🔥
+// 🔥 FUNGSI REKAM (10 Detik Ideal Cepat) 🔥
 const rekamVideoSuperDNA = () => {
   if (!mediaRecorder) return
   
   recordedChunks = []
   isRecording.value = true
   isVideoReady.value = false
-  countdown.value = 15
+  countdown.value = 10
   
   mediaRecorder.start()
 
-  teksPemandu.value = '🟢 Posisikan Wajah Tegak'
-  setTimeout(() => { teksPemandu.value = '👉 Nengok KANAN Perlahan' }, 3000)
-  setTimeout(() => { teksPemandu.value = '👇 Nunduk BAWAH Perlahan' }, 7000)
-  setTimeout(() => { teksPemandu.value = '👈 Nengok KIRI Perlahan' }, 11000)
+  teksPemandu.value = '🟢 Posisikan Wajah LURUS Tegak'
+  setTimeout(() => { teksPemandu.value = '👈 Nengok KIRI Perlahan' }, 2000)
+  setTimeout(() => { teksPemandu.value = '👉 Nengok KANAN Perlahan' }, 4000)
+  setTimeout(() => { teksPemandu.value = '👆 Mendongak ATAS Perlahan' }, 6000)
+  setTimeout(() => { teksPemandu.value = '👇 Nunduk BAWAH Perlahan' }, 8000)
 
   const timerInterval = setInterval(() => {
     if(countdown.value > 0) countdown.value--
@@ -633,7 +634,7 @@ const rekamVideoSuperDNA = () => {
       clearInterval(timerInterval)
       matikanKamera() 
     }
-  }, 15000) 
+  }, 10000) 
 }
 
 const handleUploadFoto = (e) => {
@@ -721,9 +722,9 @@ const simpanRegistrasiMuka = async () => {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* 🔥 Animasi Cincin CSS Murni (Berjalan tepat 8 detik) 🔥 */
+/* 🔥 Animasi Cincin CSS Murni (Berjalan tepat 10 detik) 🔥 */
 .animate-face-id-fill {
-  animation: faceIdFill 15s linear forwards;
+  animation: faceIdFill 10s linear forwards;
 }
 @keyframes faceIdFill {
   0% { stroke-dashoffset: 302; }

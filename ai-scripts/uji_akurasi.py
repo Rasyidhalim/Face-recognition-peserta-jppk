@@ -1,6 +1,12 @@
 import os
+import cv2
+import numpy as np
 import requests
+import warnings
 import glob
+from sklearn.metrics import classification_report, confusion_matrix
+
+warnings.filterwarnings('ignore')
 
 # ==========================================
 # KONFIGURASI PENGUJIAN
@@ -10,133 +16,144 @@ TEST_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'dataset_uji'
 DIR_TERDAFTAR = os.path.join(TEST_DIR, "terdaftar")
 DIR_TIDAK_TERDAFTAR = os.path.join(TEST_DIR, "tidak_terdaftar")
 
-def setup_folders():
-    os.makedirs(DIR_TERDAFTAR, exist_ok=True)
-    os.makedirs(DIR_TIDAK_TERDAFTAR, exist_ok=True)
-    print("==================================================")
-    print(f"Folder pengujian telah disiapkan di: \n{TEST_DIR}\n")
-    print("LANGKAH SELANJUTNYA:")
-    print(f"1. Masukkan foto peserta TERDAFTAR ke: {DIR_TERDAFTAR}")
-    print(f"   (Buat subfolder dengan nama No JPPK-nya. Contoh: {DIR_TERDAFTAR}\\123456\\foto1.jpg)")
-    print(f"2. Masukkan foto orang ASING (TIDAK TERDAFTAR) ke: {DIR_TIDAK_TERDAFTAR}")
-    print(f"   (Tidak perlu subfolder, langsung saja letakkan foto misal: {DIR_TIDAK_TERDAFTAR}\\orang_asing1.jpg)")
-    print("==================================================\n")
+def adjust_gamma(image, gamma=1.0):
+    """Mensimulasikan pencahayaan rendah (low light)."""
+    invGamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+    return cv2.LUT(image, table)
 
-def test_image(image_path):
+def test_image_api(image_bytes):
+    """Mengirim gambar ke API dan mengembalikan labelnya."""
     try:
-        with open(image_path, 'rb') as img_file:
-            files = {'image': img_file}
-            response = requests.post(API_URL, files=files)
-            
+        files = {'image': ('test.jpg', image_bytes, 'image/jpeg')}
+        response = requests.post(API_URL, files=files)
+        
         if response.status_code == 200:
             result = response.json()
             if result.get("status") == "success" and result.get("data"):
-                # Ambil hasil deteksi dengan confidence tertinggi jika ada lebih dari 1 wajah
                 best_match = max(result["data"], key=lambda x: x.get("confidence", 0))
                 detected_label = best_match.get("label", "TIDAK DIKENAL")
-                score = best_match.get("confidence", 0)
-                return detected_label, score
+                return detected_label
             else:
-                return "WAJAH_TIDAK_TERDETEKSI", 0
+                return "TIDAK DIKENAL"
         else:
-            return "ERROR_API", 0
+            return "ERROR_API"
     except Exception as e:
-        return f"ERROR_{str(e)}", 0
+        return "ERROR_API"
+
+def process_condition(images_terdaftar, images_tidak_terdaftar, condition="visible"):
+    y_true = []
+    y_pred = []
+    
+    tp = 0 # True Positive: Terdaftar dan dikenali benar
+    fn = 0 # False Negative: Terdaftar tapi gagal dikenali/salah orang
+    fp = 0 # False Positive: Orang asing dikenali sebagai terdaftar
+    tn = 0 # True Negative: Orang asing ditolak (Tidak dikenal)
+    
+    # 1. UJI TERDAFTAR
+    for img_path in images_terdaftar:
+        expected_label = os.path.basename(os.path.dirname(img_path))
+        original_frame = cv2.imread(img_path)
+        if original_frame is None:
+            continue
+            
+        frame_to_test = original_frame
+        if condition == "low_light":
+            frame_to_test = adjust_gamma(original_frame, gamma=0.3)
+            
+        _, buffer = cv2.imencode('.jpg', frame_to_test)
+        detected_label = test_image_api(buffer.tobytes())
+        
+        y_true.append(expected_label)
+        if detected_label == "TIDAK DIKENAL" or detected_label == "ERROR_API":
+            y_pred.append("Tidak dikenal")
+            fn += 1
+        elif detected_label != expected_label:
+            y_pred.append(detected_label)
+            fn += 1 # Terdaftar tapi salah dikenali sebagai orang lain
+        else:
+            y_pred.append(detected_label)
+            tp += 1
+
+    # 2. UJI TIDAK TERDAFTAR (ASING)
+    for img_path in images_tidak_terdaftar:
+        original_frame = cv2.imread(img_path)
+        if original_frame is None:
+            continue
+            
+        frame_to_test = original_frame
+        if condition == "low_light":
+            frame_to_test = adjust_gamma(original_frame, gamma=0.3)
+            
+        _, buffer = cv2.imencode('.jpg', frame_to_test)
+        detected_label = test_image_api(buffer.tobytes())
+        
+        y_true.append("Tidak dikenal")
+        if detected_label == "TIDAK DIKENAL" or detected_label == "ERROR_API":
+            y_pred.append("Tidak dikenal")
+            tn += 1
+        else:
+            y_pred.append(detected_label)
+            fp += 1
+            
+    return y_true, y_pred, tp, fp, tn, fn
 
 def run_evaluation():
-    setup_folders()
+    print("Memulai Pengujian Akurasi (Dataset Uji Khusus)...")
     
-    # Kumpulkan path gambar (.jpg, .jpeg, .png)
     terdaftar_images = glob.glob(os.path.join(DIR_TERDAFTAR, "*", "*.[jp][pn]*[g]")) 
     tidak_terdaftar_images = glob.glob(os.path.join(DIR_TIDAK_TERDAFTAR, "*.[jp][pn]*[g]"))
     
-    if not terdaftar_images and not tidak_terdaftar_images:
-        print("[!] Dataset pengujian masih kosong.")
-        print("Silakan isi folder dataset_uji terlebih dahulu sesuai instruksi di atas, lalu jalankan ulang script ini.")
-        return
-
-    print("Memulai Pengujian Akurasi...\n")
-    
-    y_true = []
-    y_pred = []
-    failed_detections = 0
-    
-    print("=== MENGUJI DATA TERDAFTAR (Ekspektasi: Dikenali sebagai No JPPK) ===")
-    for img_path in terdaftar_images:
-        expected_label = os.path.basename(os.path.dirname(img_path)) 
-        filename = os.path.basename(img_path)
-        
-        detected_label, score = test_image(img_path)
-        
-        if detected_label == "WAJAH_TIDAK_TERDETEKSI":
-            failed_detections += 1
-            print(f"[!] {expected_label}/{filename} -> Wajah tidak tertangkap AI (Blur/Terlalu jauh/Gelap)")
-            continue
-            
-        y_true.append(expected_label)
-        # Sesuai dengan format dari sklearn, pastikan jika AI bilang "TIDAK DIKENAL" ia ditulis sama dengan label asing
-        y_pred.append(detected_label if detected_label != "TIDAK DIKENAL" else "Tidak dikenal")
-        
-        if detected_label == expected_label:
-            print(f"[BENAR] {expected_label}/{filename} -> Dikenali sebagai {detected_label} (Score: {score:.2f})")
-        elif detected_label == "TIDAK DIKENAL":
-            print(f"[SALAH - FN] {expected_label}/{filename} -> Gagal Dikenali / Jawabannya TIDAK DIKENAL (Score: {score:.2f})")
-        else:
-            print(f"[SALAH - MISMATCH] {expected_label}/{filename} -> Dikenali salah sebagai {detected_label} (Score: {score:.2f})")
-
-    print("\n=== MENGUJI DATA TIDAK TERDAFTAR / ASING (Ekspektasi: TIDAK DIKENAL) ===")
-    for img_path in tidak_terdaftar_images:
-        filename = os.path.basename(img_path)
-        detected_label, score = test_image(img_path)
-        
-        if detected_label == "WAJAH_TIDAK_TERDETEKSI":
-            failed_detections += 1
-            print(f"[!] {filename} -> Wajah tidak tertangkap AI")
-            continue
-            
-        y_true.append("Tidak dikenal")
-        y_pred.append(detected_label if detected_label != "TIDAK DIKENAL" else "Tidak dikenal")
-        
-        if detected_label == "TIDAK DIKENAL":
-            print(f"[BENAR] {filename} -> Ditolak dengan benar sebagai TIDAK DIKENAL")
-        else:
-            print(f"[SALAH - FP] {filename} -> BERBAHAYA! Orang asing malah dikenali sebagai {detected_label}! (Score: {score:.2f})")
-
-    # Kalkulasi Metrik Akhir dengan scikit-learn
-    if len(y_true) == 0:
-        print("\n[!] Tidak ada gambar yang berhasil dievaluasi (semua gambar gagal dideteksi wajahnya).")
+    total_images = len(terdaftar_images) + len(tidak_terdaftar_images)
+    if total_images == 0:
+        print(f"[!] Dataset pengujian kosong di {TEST_DIR}")
         return
         
-    print("\n" + "="*50)
-    print("HASIL EVALUASI AKURASI FACE RECOGNITION (JPPK RS PINDAD)")
-    print("="*50)
+    print(f"Total gambar yang akan diuji: {total_images}")
+    print("  -> Kondisi Visible Light sedang berjalan...")
+    y_true_vis, y_pred_vis, tp_vis, fp_vis, tn_vis, fn_vis = process_condition(terdaftar_images, tidak_terdaftar_images, condition="visible")
     
-    try:
-        from sklearn.metrics import classification_report, confusion_matrix
-        print("\nClassification Report:")
-        print(classification_report(y_true, y_pred, zero_division=0))
+    print("  -> Kondisi Low Light sedang berjalan...")
+    y_true_low, y_pred_low, tp_low, fp_low, tn_low, fn_low = process_condition(terdaftar_images, tidak_terdaftar_images, condition="low_light")
+    
+    # Ambil semua label unik untuk urutan confusion matrix sklearn (Detail per kelas)
+    all_labels = sorted(list(set(y_true_vis + y_pred_vis + y_pred_low)))
+    if "Tidak dikenal" not in all_labels:
+        all_labels.append("Tidak dikenal")
         
-        print("\nConfusion Matrix:")
-        print(confusion_matrix(y_true, y_pred))
+    def print_metrics(kondisi, tp, fp, tn, fn, y_true, y_pred):
+        print("\n" + "="*60)
+        print(f" HASIL PENGUJIAN AKURASI {kondisi.upper()} ")
+        print("="*60)
+        print("--- CONFUSION MATRIX (BINARY / SISTEM AKSES) ---")
+        print(f"True Positive (TP)  : {tp} (Terdaftar & Dikenali Benar)")
+        print(f"False Positive (FP) : {fp} (Orang Asing Dikenali Sebagai Terdaftar)")
+        print(f"True Negative (TN)  : {tn} (Orang Asing Ditolak / Tidak Dikenal)")
+        print(f"False Negative (FN) : {fn} (Terdaftar Tapi Gagal Dikenali / Salah Orang)")
         
-    except ImportError:
-        print("\n[!] Modul scikit-learn tidak ditemukan. Untuk menampilkan format tabel Classification Report seperti skripsi, harap jalankan:")
-        print("    pip install scikit-learn")
-        print("\nData hasil:")
-        print("Target Asli   :", y_true)
-        print("Hasil Prediksi:", y_pred)
+        total = tp + fp + tn + fn
+        akurasi = (tp + tn) / total if total > 0 else 0
+        presisi = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
         
-    print("\n" + "="*50)
-    print(f"Total Foto Diabaikan (Gagal Deteksi/Blur) : {failed_detections}")
-    print("="*50)
+        print("\n--- METRIK EVALUASI ---")
+        print(f"Akurasi Keseluruhan : {akurasi * 100:.2f}%")
+        print(f"Presisi (Precision) : {presisi * 100:.2f}%")
+        print(f"Sensitivitas (Recall): {recall * 100:.2f}%")
+        
+        print("\n--- DETAIL PER KELAS (SKLEARN) ---")
+        print(classification_report(y_true, y_pred, labels=all_labels, zero_division=0))
+        
+    print_metrics("VISIBLE LIGHT", tp_vis, fp_vis, tn_vis, fn_vis, y_true_vis, y_pred_vis)
+    print_metrics("LOW LIGHT", tp_low, fp_low, tn_low, fn_low, y_true_low, y_pred_low)
+    print("="*60)
 
 if __name__ == "__main__":
-    setup_folders()
     try:
-        print("Mengecek koneksi ke API Face Recognition (http://localhost:8001)...")
+        print("Mengecek koneksi API...")
         requests.get("http://localhost:8001/docs", timeout=2)
-        print("API Terhubung!")
+        print("API Terhubung!\n")
         run_evaluation()
     except requests.exceptions.RequestException:
         print("\n[ERROR] API Server tidak berjalan/tidak merespon!")
-        print("Pastikan api.py sedang running di terminal terpisah (menggunakan: uvicorn api:app --reload) sebelum menjalankan test ini.")
+        print("Pastikan api.py sedang running di terminal terpisah sebelum menjalankan test ini.")
