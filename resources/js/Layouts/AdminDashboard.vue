@@ -8,25 +8,9 @@
           <p class="text-[11px] text-slate-400 font-medium mt-0.5">Manajemen Sinkronisasi Face Recognition FaceNet & WhatsApp RS Pindad</p>
         </div>
 
-        <div class="flex bg-slate-100 p-1 rounded-xl self-start xl:self-auto shadow-inner">
-          <button 
-            @click="menuUtama = 'manajemen'" 
-            :class="menuUtama === 'manajemen' ? 'bg-white text-emerald-700 shadow-sm font-black' : 'text-slate-500 font-bold hover:text-slate-800'"
-            class="px-5 py-2.5 text-xs rounded-lg transition-all flex items-center gap-2 whitespace-nowrap"
-          >
-            👥 Kelola & Kamera AI
-          </button>
-          <button 
-            @click="menuUtama = 'rekap_excel'" 
-            :class="menuUtama === 'rekap_excel' ? 'bg-emerald-600 text-white shadow-md font-black' : 'text-slate-500 font-bold hover:text-slate-800'"
-            class="px-5 py-2.5 text-xs rounded-lg transition-all flex items-center gap-2 ml-1 whitespace-nowrap"
-          >
-            📊 Rekap & Export Excel
-          </button>
-        </div>
       </div>
 
-      <div v-if="menuUtama === 'manajemen'" class="space-y-4 animate-fade-in">
+      <div class="space-y-4 animate-fade-in">
         
         <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-4 rounded-xl border border-slate-100 shadow-sm gap-4">
           <div class="flex flex-col sm:flex-row sm:items-center gap-4 w-full">
@@ -114,81 +98,7 @@
         </div>
       </div>
 
-      <div v-if="menuUtama === 'rekap_excel'" class="bg-white rounded-2xl shadow-sm p-6 border border-slate-100 animate-fade-in">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
-          <div>
-            <h4 class="text-sm font-black text-slate-800">Master Sheet Rekapitulasi Pasien JPPK</h4>
-            <p class="text-[11px] text-slate-400 mt-0.5">Total data terekspor: <span class="text-emerald-600 font-bold">{{ filteredPeserta.length }} Baris</span></p>
-          </div>
-          
-          <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <div class="relative w-full sm:w-64">
-              <span class="absolute inset-y-0 left-3 flex items-center text-slate-400">🔍</span>
-              <input v-model="searchQuery" type="text" placeholder="Filter data ekspor..." class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-emerald-200 transition-all shadow-inner">
-            </div>
-            
-            <button @click="prosesExportExcel" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 shrink-0">
-              📥 Download Berkas Excel
-            </button>
-          </div>
-        </div>
 
-        <div class="overflow-x-auto border border-slate-100 rounded-xl">
-          <table class="w-full text-left border-collapse text-[11px]">
-            <thead class="bg-slate-100 border-b border-slate-200 font-bold text-slate-700 uppercase tracking-wider">
-              <tr>
-                <th class="p-3">No JPPK</th>
-                <th class="p-3 bg-emerald-50/50">No RM</th>
-                <th class="p-3">NPP</th>
-                <th class="p-3">Nama Lengkap Pasien</th>
-                <th class="p-3">Status</th>
-                <th class="p-3">Nama Penanggung</th>
-                <th class="p-3">Gender</th>
-                <th class="p-3">Tgl Lahir</th>
-                <th class="p-3">No WhatsApp</th>
-                <th class="p-3">Divisi Unit</th>
-                <th class="p-3">Unit ID</th>
-                <th class="p-3">Plan ID</th>
-                <th class="p-3">Status Face AI</th>
-              </tr>
-            </thead>
-            <tbody class="text-slate-600">
-              <tr v-for="p in paginatedPeserta" :key="p.no_jppk" class="border-b border-slate-100 hover:bg-slate-50/80">
-                <td class="p-3 font-bold text-slate-900 bg-slate-50/40">{{ p.no_jppk }}</td>
-                <td class="p-3 font-bold text-emerald-600 bg-emerald-50/30">{{ p.no_rm || '-' }}</td>
-                <td class="p-3 font-mono font-bold text-slate-700">{{ p.npp }}</td>
-                <td class="p-3 font-medium text-slate-800">{{ p.nama_peserta }}</td>
-                <td class="p-3 font-bold text-slate-700">{{ p.status || '-' }}</td>
-                <td class="p-3 font-medium">{{ p.nama_penanggung || '-' }}</td>
-                <td class="p-3 text-center font-bold">{{ p.jenis_kelamin }}</td>
-                <td class="p-3 whitespace-nowrap">{{ p.tgl_lahir }}</td>
-                <td class="p-3 font-mono text-blue-600">{{ p.no_telp || '-' }}</td>
-                <td class="p-3 font-medium">{{ p.divisi || '-' }}</td>
-                <td class="p-3 text-center bg-slate-50/20">{{ p.unit_id }}</td>
-                <td class="p-3 text-center bg-slate-50/20">{{ p.plan_id }}</td>
-                <td class="p-3">
-                  <span v-if="p.face_embedding" class="text-emerald-600 font-bold">🟢 Aktif</span>
-                  <span v-else class="text-rose-500 font-bold">🔴 Kosong</span>
-                </td>
-              </tr>
-              <tr v-if="filteredPeserta.length === 0">
-                 <td colspan="13" class="text-center p-8 font-bold text-slate-400">Pencarian kosong.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div v-if="filteredPeserta.length > 0" class="flex items-center justify-between border-t border-slate-100 pt-4 mt-4">
-          <div class="text-[11px] text-slate-500 font-bold">
-            Menampilkan {{ (currentPage - 1) * itemsPerPage + 1 }} - {{ Math.min(currentPage * itemsPerPage, filteredPeserta.length) }} dari {{ filteredPeserta.length }} Pasien
-          </div>
-          <div class="flex items-center gap-1.5">
-            <button @click="currentPage--" :disabled="currentPage === 1" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Sebelumnya</button>
-            <span class="text-xs font-black text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100">Halaman {{ currentPage }} / {{ totalPages }}</span>
-            <button @click="currentPage++" :disabled="currentPage === totalPages" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Selanjutnya</button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <Teleport to="body">
@@ -388,6 +298,10 @@ const paginatedPeserta = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
   const end = start + itemsPerPage
   return filteredPeserta.value.slice(start, end)
+})
+
+const wajahDikenalPeserta = computed(() => {
+  return filteredPeserta.value.filter(p => p.face_embedding !== null && p.face_embedding !== '' && p.face_image_path !== null);
 })
 
 watch(searchQuery, () => { currentPage.value = 1 })

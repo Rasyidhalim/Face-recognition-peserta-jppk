@@ -37,6 +37,8 @@
 
         <template v-if="userRole === 'admin' || userRole === 'superadmin'">
             <AdminDashboard v-if="activeTab === 'kelola_peserta'" />
+            <AdminRekapExcel v-if="activeTab === 'rekap_excel'" />
+            <AdminDaftarWajah v-if="activeTab === 'daftar_wajah'" />
             <AdminLaporan v-if="activeTab === 'laporan_pendaftaran'" />
         </template>
 
@@ -56,6 +58,8 @@ import AntrianPoli from '../Layouts/AntrianPoli.vue'
 import DokterDashboard from '../Layouts/DashboardDokter.vue' 
 import RiwayatMedis from '../Layouts/RiwayatMedis.vue'
 import AdminDashboard from '../Layouts/AdminDashboard.vue'
+import AdminDaftarWajah from '../Layouts/AdminDaftarWajah.vue'
+import AdminRekapExcel from '../Layouts/AdminRekapExcel.vue'
 import AdminLaporan from '../Layouts/AdminLaporan.vue'
 
 const props = defineProps({
@@ -105,6 +109,8 @@ const headerTitle = computed(() => {
     'pemeriksaan_dokter': 'Ruang Pemeriksaan Medis Dokter',
     'riwayat_medis_dokter': 'Riwayat Medis Pasien Selesai',
     'kelola_peserta': 'Panel Kontrol Admin & Registrasi Biometrik Pasien',
+    'rekap_excel': 'Rekapitulasi & Export Excel Pasien',
+    'daftar_wajah': 'Pusat Biometrik Pasien Dikenal',
     'laporan_pendaftaran': 'Laporan & Rekapitulasi Pendaftaran Antrean' 
   }
   return titles[activeTab.value] || 'Dashboard'
