@@ -59,3 +59,11 @@ Route::post('/panggil-poli', [PoliController::class, 'panggilPoli']);
 
 Route::get('/admin/units', function() { return DB::table('units')->get(); });
 Route::get('/admin/plans', function() { return DB::table('plans')->get(); });
+
+Route::get('/dataset_wajah/{path}', function ($path) {
+    $fullPath = storage_path('app/dataset_wajah/' . $path);
+    if (!file_exists($fullPath)) {
+        abort(404);
+    }
+    return response()->file($fullPath);
+})->where('path', '.*');
