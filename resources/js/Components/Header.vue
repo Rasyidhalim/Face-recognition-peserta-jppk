@@ -1,7 +1,6 @@
 <script setup>
-import { computed } from 'vue'; 
+import { useHeader } from '../Composables/useHeader'
 
-// Sekarang hanya emit 'logout' saja karena hamburger sudah dihapus
 defineEmits(['logout']);
 
 const props = defineProps({
@@ -15,25 +14,10 @@ const props = defineProps({
   }
 });
 
-// Logika nama role utama dinamis
-const tampilanNamaRole = computed(() => {
-  if (props.userRole === 'farmasi') return 'Petugas Farmasi';
-  if (props.userRole === 'poli') return 'Petugas Poliklinik';
-  if (props.userRole === 'dokter') return 'Dokter Spesialis';
-  if (props.userRole === 'admin') return 'Super Admin Eksekutif'; 
-  if (props.userRole === 'superadmin') return 'Super Admin Eksekutif'; 
-  return 'Admin Loket JPPK'; 
-});
-
-// Logika sub-nama/bagian dinamis
-const tampilanSubRole = computed(() => {
-  if (props.userRole === 'farmasi') return 'Instalasi Farmasi';
-  if (props.userRole === 'poli') return 'Pelayanan Poli';
-  if (props.userRole === 'dokter') return 'Ruang Pemeriksaan Medis'; 
-  if (props.userRole === 'admin') return 'Direktorat IT RS Pindad';
-  if (props.userRole === 'superadmin') return 'Direktorat IT RS Pindad';
-  return 'Petugas Pendaftaran'; 
-});
+const {
+  tampilanNamaRole,
+  tampilanSubRole
+} = useHeader(props)
 </script>
 
 <template>

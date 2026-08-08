@@ -31,7 +31,8 @@ def is_blinking(face_landmarks, img_w, img_h):
     right_ear = eye_aspect_ratio(right_eye, img_w, img_h)
     average_ear = (left_ear + right_ear) / 2.0
     print(f"DEBUG: EAR terdeteksi: {average_ear:.3f}")
-    return average_ear < 0.25
+    # Ubah threshold dari 0.25 ke 0.28 agar kedipan cepat (ngedip) langsung terdeteksi
+    return average_ear < 0.28
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
@@ -253,8 +254,8 @@ async def recognize_face(image: UploadFile = File(...)):
                                 
                                 if score > best_score:
                                     best_score = score
-                                    # Naikkan threshold menjadi 0.75 agar lebih ketat dan tidak mudah salah orang
-                                    if score > 0.75: 
+                                    # Ubah threshold menjadi 0.70 sesuai permintaan
+                                    if score > 0.70: 
                                         label = known_jppk 
                                         info_db = karyawan_info.get(label, None)
                     except ValueError:
@@ -302,7 +303,6 @@ async def extract_faces_from_video(no_jppk: str, video: UploadFile = File(...)):
         
     try:
         cap = cv2.VideoCapture(temp_video_path)
-        quotas = {"lurus": 40, "kiri": 40, "kanan": 40, "atas": 40, "bawah": 40}
         counts = {"lurus": 0, "kiri": 0, "kanan": 0, "atas": 0, "bawah": 0}
         saved_count = 0
         loop_counter = 0
@@ -367,7 +367,7 @@ async def extract_faces_from_video(no_jppk: str, video: UploadFile = File(...)):
                             saved_count += 1
                             face_saved_in_this_frame = True
                             
-                            if len(embeddings_list) < 30:
+                            if len(embeddings_list) < 200:
                                 try:
                                     ref_data = DeepFace.represent(img_path=crop_img, model_name="Facenet", enforce_detection=True)
                                     if ref_data: embeddings_list.append(ref_data[0]["embedding"])
