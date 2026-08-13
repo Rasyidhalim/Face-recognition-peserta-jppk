@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('polis', function (Blueprint $table) {
             $table->id();
             $table->string('nama_poli');
-            $table->string('kode_poli', 50);
+            $table->string('kode_poli', 50)->unique();
             $table->timestamps();
         });
     }

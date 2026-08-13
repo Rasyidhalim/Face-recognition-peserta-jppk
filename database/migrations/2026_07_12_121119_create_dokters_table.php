@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('dokters', function (Blueprint $table) {
             $table->id();
-            $table->string('nip')->nullable();
+            $table->string('nip')->unique()->nullable();
             $table->string('nama_dokter');
             $table->unsignedBigInteger('poli_id');
             $table->string('no_telp')->nullable();

@@ -12,23 +12,22 @@ return new class extends Migration
 public function up()
 {
     Schema::create('peserta_jppk', function (Blueprint $table) {
-        // Primary Key manual menggunakan No JPPK
         $table->string('no_jppk')->primary(); 
-        
-        // Data Dasar Pasien
-        $table->string('npp')->index(); // NPP bisa sama untuk satu keluarga
+        $table->string('no_rm', 50)->nullable();
+        $table->string('npp')->index();
+        $table->string('status');
         $table->string('nama_peserta');
+        $table->string('nama_penanggung')->nullable();
         $table->enum('jenis_kelamin', ['L', 'P']);
         $table->date('tgl_lahir');
         $table->string('no_telp')->nullable();
+        $table->string('divisi')->nullable();
         
-        // Hubungan ke Master Data (Foreign Key)
         $table->foreignId('unit_id')->constrained('units')->onDelete('cascade');
         $table->foreignId('plan_id')->constrained('plans')->onDelete('cascade');
 
-        // Kolom Khusus AI Face Recognition
-        $table->string('face_image_path')->nullable(); // Path foto di storage
-        $table->json('face_embedding')->nullable();   // Hasil koordinat wajah dari Python
+        $table->string('face_image_path')->nullable();
+        $table->json('face_embedding')->nullable();
 
         $table->timestamps();
     });
