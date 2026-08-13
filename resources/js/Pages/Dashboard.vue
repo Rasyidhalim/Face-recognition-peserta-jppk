@@ -15,7 +15,7 @@
         @logout="$emit('do-logout')" 
       />
 
-      <main class="flex-1 overflow-x-hidden overflow-y-auto p-6">
+      <main @scroll="isSidebarOpen = false" class="flex-1 overflow-x-hidden overflow-y-auto p-6">
         
         <template v-if="userRole === 'loket' || userRole === 'superadmin'">
             <Main v-if="activeTab === 'verifikasi'" />
