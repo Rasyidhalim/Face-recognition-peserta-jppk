@@ -14,9 +14,10 @@ public function up()
     Schema::create('users', function (Blueprint $table) {
         $table->id();
         $table->string('name');
-        $table->string('username')->unique(); // Login pakai username, bukan email
+        $table->string('username')->unique();
         $table->string('password');
-        $table->enum('role', ['admin', 'loket', 'farmasi'])->default('loket');
+        $table->enum('role', ['admin', 'loket', 'farmasi', 'poli', 'dokter', 'superadmin'])->default('loket');
+        $table->unsignedBigInteger('dokter_id')->nullable();
         $table->rememberToken();
         $table->timestamps();
     });

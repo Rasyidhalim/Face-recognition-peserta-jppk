@@ -13,15 +13,15 @@ return new class extends Migration
 {
     Schema::create('antrians', function (Blueprint $table) {
         $table->id();
-        $table->string('no_jppk'); 
-        $table->string('nama_pasien'); // Tambah ini
-        $table->string('no_telp');       // Tambah ini buat kirim WhatsApp
-        $table->string('poli'); 
-        $table->string('no_antrian'); 
+        $table->string('no_registrasi')->nullable();
+        $table->string('no_jppk');
+        $table->unsignedBigInteger('jadwal_dokter_id');
+        $table->string('no_antrian');
         $table->date('tanggal_daftar');
-        $table->string('nama_obat')->nullable();
-        $table->string('status_farmasi')->default('menunggu'); 
+        $table->enum('status', ['menunggu', 'dipanggil', 'selesai', 'batal'])->default('menunggu');
         $table->timestamps();
+
+        $table->foreign('no_jppk')->references('no_jppk')->on('peserta_jppk')->onDelete('cascade');
     });
 }
 

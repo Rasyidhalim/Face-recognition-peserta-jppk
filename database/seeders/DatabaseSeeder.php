@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 
 class DatabaseSeeder extends Seeder
 {
@@ -12,14 +11,17 @@ class DatabaseSeeder extends Seeder
      * Seed the application's database.
      */
     public function run(): void
-{
+    {
+        Schema::disableForeignKeyConstraints();
 
-    \App\Models\User::create([
-    'name' => 'Super Admin Pindad',
-    'username' => 'admin.pindad',
-    'password' => bcrypt('admin123'),
-    'role' => 'admin',
-    ]);
+        $this->call(DokterSeeder::class);
+        $this->call(JadwalDokterSeeder::class);
+        $this->call(PesertaJppkSeeder::class);
+        $this->call(PlanSeeder::class);
+        $this->call(PoliSeeder::class);
+        $this->call(UnitSeeder::class);
+        $this->call(UserSeeder::class);
 
-}
+        Schema::enableForeignKeyConstraints();
+    }
 }
