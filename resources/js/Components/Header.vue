@@ -1,7 +1,7 @@
 <script setup>
 import { useHeader } from '../Composables/useHeader'
 
-defineEmits(['logout']);
+defineEmits(['logout', 'toggle-sidebar']);
 
 const props = defineProps({
   currentPageTitle: {
@@ -23,7 +23,16 @@ const {
 <template>
   <header class="h-20 bg-white border-b border-slate-100 px-8 flex items-center justify-between z-10 transition-all">
     
-    <div class="flex items-center">
+    <div class="flex items-center gap-4">
+      <button 
+        @click="$emit('toggle-sidebar')" 
+        type="button"
+        class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-emerald-600 transition-all border border-slate-200 cursor-pointer"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
       <h2 class="text-slate-500 font-medium text-sm">
         Dashboard / <span class="text-emerald-600 font-bold">{{ currentPageTitle }}</span>
       </h2>

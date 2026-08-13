@@ -1,7 +1,6 @@
 <template>
   <aside 
-    @mouseenter="$emit('update:isOpen', true)"
-    @mouseleave="$emit('update:isOpen', false)"
+
     :class="[isOpen ? 'w-72 translate-x-0' : 'w-0 -translate-x-full md:w-20 md:translate-x-0 overflow-hidden']"
     class="bg-emerald-950 text-white flex flex-col shadow-2xl relative z-20 transition-all duration-300 ease-in-out transform shrink-0"
   >
